@@ -115,7 +115,7 @@ pub fn path(props: &PathProps) -> Html {
             // 错误提示行：仅在无效时显示
             if !*is_valid {
                 <div class="path-help-text">
-                    {"无法在此路径下检测到 player.xml 等存档文件。请手动选择 save00 文件夹。"}
+                    {"无法在此路径下检测到存档文件。请手动选择 save00 文件夹"}
                     <br/>
                     {"通常位于: C:/Users/%USERNAME%/AppData/LocalLow/Nolla_Games_Noita/save00"}
                 </div>

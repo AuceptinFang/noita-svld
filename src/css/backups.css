@@ -2,7 +2,6 @@
     width: 100%;
 }
 /* --- 布局容器 --- */
-/* 复用之前的 .path-container 样式作为基础宽度控制 */
 .backup-page-container {
     width: 96%;
     max-width: 1920px;
@@ -17,25 +16,23 @@
 
 /* --- 新建备份区域 (顶部操作栏) --- */
 .backup-maker {
-    background-color: #1e293b;
-    border: 1px solid #334155;
-    padding: 1rem;
+    margin: 5vh 4px 5vh 4vh;
     border-radius: 12px;
     display: flex;
     gap: 10px;
     align-items: center;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .backup-note-input {
     flex: 1; /* 撑满 */
-    background-color: #0f172a;
-    border: 1px solid #334155;
-    color: #e2e8f0;
+    background-color: #e2e8f0;
+    color: #0f172a;
     padding: 0.8rem 1rem;
     border-radius: 6px;
     outline: none;
     transition: all 0.2s;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .backup-note-input:focus {
@@ -45,6 +42,7 @@
 
 /* --- 备份历史列表 (滚动区) --- */
 .backup-list-container {
+    margin: 4px 4px 4px 4vh;
     flex: 1; /* 占据剩余所有高度 */
     overflow-y: auto; /* 允许垂直滚动 */
     padding-right: 5px; /* 给滚动条留点位置 */

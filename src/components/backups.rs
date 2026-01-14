@@ -152,10 +152,10 @@ pub fn backups(props: &BackupsProps) -> Html {
                     ref={note_input_ref}
                     class="backup-note-input"
                     type="text"
-                    placeholder="添加备注（例如：刚拿到核弹法杖...）"
+                    placeholder="添加备注"
                 />
                 <button class="btn btn-create btn-primary" onclick={on_create_click}>
-                    <span>{"💾 新建备份"}</span>
+                    <span>{"Save"}</span>
                 </button>
             </div>
 
@@ -164,7 +164,7 @@ pub fn backups(props: &BackupsProps) -> Html {
             <div class="backup-list-container mt-4">
                 if backups_list.is_empty() {
                     <div class="text-center text-slate-500 py-10">
-                        {"暂无备份记录，快去创建一个吧！"}
+                        {"暂无备份记录"}
                     </div>
                 } else {
                     { for backups_list.iter().map(|backup| {
@@ -198,14 +198,14 @@ pub fn backups(props: &BackupsProps) -> Html {
                                         class="btn btn-restore"
                                         onclick={Callback::from(move |_| on_restore.emit((id, name_for_restore.clone())))}
                                     >
-                                        {"⚡ 还原"}
+                                        {"Load"}
                                     </button>
                                     <button
                                         class="btn btn-delete"
                                         onclick={Callback::from(move |_| on_delete.emit((id, name_for_delete.clone())))}
                                         title="删除此备份"
                                     >
-                                        {"🗑️"}
+                                        {"Delete"}
                                     </button>
                                 </div>
                             </div>
