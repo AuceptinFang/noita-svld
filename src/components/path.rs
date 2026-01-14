@@ -21,11 +21,11 @@ struct SavePathArgs {
 
 #[function_component(Path)]
 pub fn path(props: &PathProps) -> Html {
-    let current_path = use_state(|| "加载中...".to_string());
-    let input_ref = use_node_ref();
+    // 默认显示的提示文本
+    let current_path = use_state(|| "正在检测存档路径...".to_string());
     let is_valid = use_state(|| false);
 
-    // 初始化时获取路径
+    // --- 1. 初始化检测逻辑 ---
     {
         let current_path = current_path.clone();
         let is_valid = is_valid.clone();
@@ -34,27 +34,17 @@ pub fn path(props: &PathProps) -> Html {
         use_effect_with((), move |_| {
             spawn_local(async move {
                 let response = invoke("get_save_path", JsValue::NULL).await;
-                println!("get_save_path response: {:?}", response);
-
                 match response.as_string() {
                     Some(path) => {
-                        println!("成功获取路径: {}", path);
                         current_path.set(path);
                         let v = invoke("verify_validation", JsValue::NULL).await;
-                        if let Some(_) = v.as_string() {
-                            println!("路径验证成功");
-                            is_valid.set(true);
-                            on_valid_change.emit(true);
-                        } else {
-                            is_valid.set(false);
-                            on_valid_change.emit(false);
-                        }
+                        let valid = v.as_string().is_some();
+                        is_valid.set(valid);
+                        on_valid_change.emit(valid);
                     }
                     None => {
-                        println!("获取路径失败，response不是字符串");
-                        current_path.set("获取路径失败".to_string());
+                        current_path.set("未设置路径".to_string());
                         on_valid_change.emit(false);
-                        return;
                     }
                 }
             });
@@ -62,43 +52,7 @@ pub fn path(props: &PathProps) -> Html {
         });
     }
 
-    // 提交处理
-    let on_submit = {
-        let current_path = current_path.clone();
-        let input_ref = input_ref.clone();
-        let is_valid = is_valid.clone();
-        let on_valid_change = props.on_valid_change.clone();
-
-        Callback::from(move |e: SubmitEvent| {
-            e.prevent_default();
-            let input = input_ref.cast::<web_sys::HtmlInputElement>().unwrap();
-            let new_path = input.value();
-
-            if !new_path.is_empty() {
-                let current_path = current_path.clone();
-                let is_valid = is_valid.clone();
-                let on_valid_change = on_valid_change.clone();
-                spawn_local(async move {
-                    let args = serde_wasm_bindgen::to_value(&SavePathArgs {
-                        path: new_path.clone(),
-                    })
-                    .unwrap();
-                    invoke("save_path_to_env", args).await;
-                    let v = invoke("verify_validation", JsValue::NULL).await;
-                    if let Some(_) = v.as_string() {
-                        is_valid.set(true);
-                        on_valid_change.emit(true);
-                    } else {
-                        is_valid.set(false);
-                        on_valid_change.emit(false);
-                    }
-                    current_path.set(new_path);
-                });
-                input.set_value("");
-            }
-        })
-    };
-
+    // --- 2. 浏览文件夹逻辑 ---
     let on_select_folder = {
         let current_path = current_path.clone();
         let is_valid = is_valid.clone();
@@ -109,54 +63,63 @@ pub fn path(props: &PathProps) -> Html {
             let is_valid = is_valid.clone();
             let on_valid_change = on_valid_change.clone();
             spawn_local(async move {
+                // 调用 Tauri 的选择文件夹弹窗
                 let response = invoke("select_save_path", JsValue::NULL).await;
                 match response.as_string() {
                     Some(path) => {
+                        // 1. 更新 UI 显示
                         current_path.set(path.clone());
-                        let args =
-                            serde_wasm_bindgen::to_value(&SavePathArgs { path: path.clone() })
-                                .unwrap();
+
+                        // 2. 保存到后端环境
+                        let args = serde_wasm_bindgen::to_value(&SavePathArgs { path: path.clone() }).unwrap();
                         invoke("save_path_to_env", args).await;
+
+                        // 3. 再次验证有效性
                         let v = invoke("verify_validation", JsValue::NULL).await;
-                        if let Some(_) = v.as_string() {
-                            is_valid.set(true);
-                            on_valid_change.emit(true);
-                        } else {
-                            is_valid.set(false);
-                            on_valid_change.emit(false);
-                        }
+                        let valid = v.as_string().is_some();
+
+                        is_valid.set(valid);
+                        on_valid_change.emit(valid);
                     }
-                    None => return,
+                    None => return, // 用户取消了选择
                 }
             })
         })
     };
 
+    // --- 3. 渲染部分 ---
     html! {
-         <div class="path-container">
-             <div class="path-display">
-                 <div class="path-info">
-                     <span>{ "当前选中路径: " }{&*current_path }</span>
-                     {
-                         if *is_valid {
-                             html! { <span class="path-status-valid">{"已找到存档✓"}</span> }
-                         }else {
-                             html! { <span class="path-status-invalid">{"路径下未找到存档✗ \n 请手动选择，路径参考：\n C:/Users/%USERNAME%/AppData/LocalLow/Nolla_Games_Noita/save00"}</span> }
-                         }
-                     }
-                 </div>
-             </div>
-             <div class="class-controls">
-                 <form class="path-form" onsubmit={on_submit}>
-                     <button onclick={on_select_folder} class="path-button">
-                     {"📁 浏览文件"}
-                     </button>
-                     <input ref={input_ref} placeholder="或直接输入路径（请最好不要）..." class="path-input" />
-                     <button type="submit" class="path-submit">
-                         {"修改"}
-                     </button>
-                 </form>
-             </div>
+         <div class="path-card">
+            // 标题行：左边是标签，右边是状态
+            <div class="path-header">
+                <span class="path-label">{"Noita 存档位置 (save00)"}</span>
+                {
+                    if *is_valid {
+                        html! { <span class="badge badge-success">{"● 路径验证通过"}</span> }
+                    } else {
+                        html! { <span class="badge badge-error">{"● 未找到存档所在"}</span> }
+                    }
+                }
+            </div>
+
+            // 内容行：路径显示 + 修改按钮
+            <div class="path-body">
+                <div class={if *is_valid { "path-value" } else { "path-value path-error" }}>
+                    { &*current_path }
+                </div>
+                <button onclick={on_select_folder} class="btn btn-secondary btn-browse">
+                    {"📁 更改..."}
+                </button>
+            </div>
+
+            // 错误提示行：仅在无效时显示
+            if !*is_valid {
+                <div class="path-help-text">
+                    {"无法在此路径下检测到 player.xml 等存档文件。请手动选择 save00 文件夹。"}
+                    <br/>
+                    {"通常位于: C:/Users/%USERNAME%/AppData/LocalLow/Nolla_Games_Noita/save00"}
+                </div>
+            }
          </div>
     }
 }

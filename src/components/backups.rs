@@ -145,7 +145,7 @@ pub fn backups(props: &BackupsProps) -> Html {
 
     // --- 渲染 ---
     html! {
-        <div class="flex-col w-full h-full"> // A. 新建备份区域 (只在路径有效时显示)
+        <div class="flex-col w-full h-full"> //新建备份区域
 
             <div class="backup-maker">
                 <input
