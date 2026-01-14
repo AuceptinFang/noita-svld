@@ -12,7 +12,7 @@ pub fn backup() -> Html {
     };
 
     html! {
-        <main class="backup_container">
+        <main class="backup-container">
             // 路径选择组件
             <Path on_valid_change={on_valid_change} />
 

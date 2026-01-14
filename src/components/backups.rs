@@ -4,6 +4,8 @@ use wasm_bindgen::prelude::*;
 use serde_json::json;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
+// 引入你的 Path 组件
+use crate::components::Path;
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct BackupsProps {
@@ -16,242 +18,228 @@ extern "C" {
     async fn invoke(cmd: &str, args: JsValue) -> JsValue;
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+// 对应后端的数据结构
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Backup {
-    pub id: i32,
-    pub name: Option<String>,
-    pub digest: String,
+    pub id: i32, // 唯一标识
+    pub name: Option<String>, // 备注
     pub size: i64,
     #[serde(with = "time::serde::rfc3339")]
     pub save_time: OffsetDateTime,
-    pub more_info: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-enum Operation {
-    Save,
-    Load,
+// 用于控制弹窗状态的枚举
+#[derive(Clone, PartialEq)]
+enum ModalAction {
+    None,
+    ConfirmRestore(i32, String), // id, name
+    ConfirmDelete(i32, String),  // id, name
 }
 
 #[function_component(Backups)]
-pub fn backups(_props: &BackupsProps) -> Html {
-    let current_operation = use_state(|| Operation::Save);
-    let backups = use_state(|| Vec::<Backup>::new());
-    let show_dialog = use_state(|| false);
-    let selected_slot = use_state(|| None::<usize>);
+pub fn backups(props: &BackupsProps) -> Html {
+    let backups_list = use_state(|| Vec::<Backup>::new());
+    let note_input_ref = use_node_ref();
+    let modal_state = use_state(|| ModalAction::None);
 
-    // 获取所有备份数据
-    {
-        let backups = backups.clone();
-        use_effect_with((), move |_| {
+    // --- 1. 获取备份列表 (封装成函数方便复用) ---
+    let fetch_backups = {
+        let backups_list = backups_list.clone();
+        move || {
+            let backups_list = backups_list.clone();
             spawn_local(async move {
                 let response = invoke("get_all_backups", JsValue::NULL).await;
                 match serde_wasm_bindgen::from_value::<Vec<Backup>>(response) {
-                    Ok(backups_data) => {
-                        backups.set(backups_data);
+                    Ok(mut data) => {
+                        // 按时间倒序排序（最新的在最上面）
+                        data.sort_by(|a, b| b.save_time.cmp(&a.save_time));
+                        backups_list.set(data);
                     }
-                    Err(e) => {
-                        web_sys::console::log_1(&format!("获取备份失败: {:?}", e).into());
-                    }
+                    Err(e) => web_sys::console::log_1(&format!("Err: {:?}", e).into()),
                 }
             });
+        }
+    };
+
+    // 初始化加载
+    {
+        let fetch = fetch_backups.clone();
+        use_effect_with((), move |_| {
+            fetch();
             || {}
         });
     }
 
-    // 切换到保存模式
-    let turn_to_save = {
-        let current_operation = current_operation.clone();
-        Callback::from(move |_: MouseEvent| {
-            current_operation.set(Operation::Save);
+    // --- 2. 创建备份 (Create) ---
+    let on_create_click = {
+        let note_input_ref = note_input_ref.clone();
+        let fetch = fetch_backups.clone();
+
+        Callback::from(move |e: MouseEvent| {
+            e.prevent_default(); // 防止Form提交刷新
+            let input = note_input_ref.cast::<web_sys::HtmlInputElement>().unwrap();
+            let note = input.value();
+
+            let fetch = fetch.clone();
+            let input_clone = input.clone();
+
+            spawn_local(async move {
+                // 调用 Tauri: create_backup
+                let args = serde_wasm_bindgen::to_value(&json!({ "note": note })).unwrap();
+                invoke("create_backup", args).await;
+
+                // 清空输入框并刷新列表
+                input_clone.set_value("");
+                fetch();
+            });
         })
     };
 
-    // 切换到加载模式
-    let turn_to_load = {
-        let current_operation = current_operation.clone();
-        Callback::from(move |_: MouseEvent| {
-            current_operation.set(Operation::Load);
+    // --- 3. 触发弹窗逻辑 ---
+    let trigger_restore = {
+        let modal_state = modal_state.clone();
+        Callback::from(move |(id, name): (i32, String)| {
+            modal_state.set(ModalAction::ConfirmRestore(id, name));
         })
     };
 
-    // 点击存档槽位
-    let on_slot_click = {
-        let show_dialog = show_dialog.clone();
-        let selected_slot = selected_slot.clone();
-        Callback::from(move |slot: usize| {
-            selected_slot.set(Some(slot));
-            show_dialog.set(true);
+    let trigger_delete = {
+        let modal_state = modal_state.clone();
+        Callback::from(move |(id, name): (i32, String)| {
+            modal_state.set(ModalAction::ConfirmDelete(id, name));
         })
     };
 
-    // 关闭弹窗
-    let close_dialog = {
-        let show_dialog = show_dialog.clone();
+    // --- 4. 执行确认操作 (Modal Confirm) ---
+    let on_modal_confirm = {
+        let modal_state = modal_state.clone();
+        let fetch = fetch_backups.clone();
+
         Callback::from(move |_| {
-            show_dialog.set(false);
+            let fetch = fetch.clone();
+            let current_action = (*modal_state).clone();
+
+            spawn_local(async move {
+                match current_action {
+                    ModalAction::ConfirmRestore(id, _) => {
+                        let args = serde_wasm_bindgen::to_value(&json!({ "id": id })).unwrap();
+                        invoke("restore_backup", args).await;
+                        // 还原后可能不需要刷新列表，但为了保险起见可以刷新
+                    },
+                    ModalAction::ConfirmDelete(id, _) => {
+                        let args = serde_wasm_bindgen::to_value(&json!({ "id": id })).unwrap();
+                        invoke("delete_backup", args).await;
+                        fetch(); // 删除后必须刷新列表
+                    },
+                    ModalAction::None => {}
+                }
+            });
+            modal_state.set(ModalAction::None); // 关闭弹窗
         })
     };
 
-    // 确认操作
-    let confirm_operation = {
-        let show_dialog = show_dialog.clone();
-        let selected_slot = selected_slot.clone();
-        let current_operation = current_operation.clone();
-        let backups = backups.clone();
-
-        Callback::from(move |_| {
-            show_dialog.set(false);
-
-            if let Some(slot) = *selected_slot {
-                let operation = (*current_operation).clone();
-                let backups = backups.clone();
-                spawn_local(async move {
-                    // Tauri invoke 需要对象形式的参数，字段名应与后端函数参数 camelCase 一致
-                    let (cmd, args_value) = match operation {
-                        Operation::Save => (
-                            "save_backup",
-                            serde_wasm_bindgen::to_value(&json!({ "slotId": slot as i8 })).unwrap()
-                        ),
-                        Operation::Load => (
-                            "load_backup",
-                            serde_wasm_bindgen::to_value(&json!({ "backupId": slot as i32 })).unwrap()
-                        ),
-                    };
-
-                    let response = invoke(cmd, args_value).await;
-                    web_sys::console::log_1(&format!("{} 执行结果: {:?}", cmd, response).into());
-
-                    // 重新获取备份列表
-                    let response = invoke("get_all_backups", JsValue::NULL).await;
-                    if let Ok(backups_data) =
-                        serde_wasm_bindgen::from_value::<Vec<Backup>>(response)
-                    {
-                        backups.set(backups_data);
-                    }
-                });
-            }
-        })
+    let on_modal_cancel = {
+        let modal_state = modal_state.clone();
+        Callback::from(move |_| modal_state.set(ModalAction::None))
     };
 
+    // --- 渲染 ---
     html! {
-        <div class="backups-container">
-            <div class="backups-wrapper">
-                // Save/Load 按钮组
-                <div class="backups-buttons">
-                    <button
-                        class={if *current_operation == Operation::Save { "backup-button backup-save active" } else { "backup-button backup-save" }}
-                        onclick={turn_to_save}
-                    >
-                        {"Save"}
-                    </button>
-                    <button
-                        class={if *current_operation == Operation::Load { "backup-button backup-load active" } else { "backup-button backup-load" }}
-                        onclick={turn_to_load}
-                    >
-                        {"Load"}
-                    </button>
-                </div>
+        <div class="flex-col w-full h-full"> // A. 新建备份区域 (只在路径有效时显示)
 
-                // 存档滚动列表
-                <div class="backups-list-container">
-                    <div class="backups-list">
-                    {
-                        (0..10).map(|i| {
-                            let backup_data = backups.get(i);
-                            let slot_number = i + 1;
-                            let on_slot_click = on_slot_click.clone();
-
-                            let slot_click = Callback::from(move |_: MouseEvent| {
-                                on_slot_click.emit(slot_number);
-                            });
-
-                            match backup_data {
-                                Some(backup) => {
-                                    // 有数据的存档位
-                                    let display_name = backup.name.as_ref()
-                                        .map(|n| n.clone())
-                                        .unwrap_or_else(|| format!("存档位置 {}", slot_number));
-
-                                    let formatted_time = backup.save_time
-                                        .format(&time::format_description::well_known::Rfc3339)
-                                        .unwrap_or_else(|_| "时间格式错误".to_string());
-
-                                    let size_mb = (backup.size as f64) / (1024.0 * 1024.0);
-
-                                    html! {
-                                        <div key={i}
-                                             class={if i == 9 { "backup-item backup-item-last" } else { "backup-item" }}
-                                             onclick={slot_click}
-                                        >
-                                            <div class="backup-name">{display_name}</div>
-                                            <div class="backup-time">{format!("保存时间: {}", formatted_time)}</div>
-                                            <div class="backup-size">{format!("大小: {:.2} MB", size_mb)}</div>
-                                            {
-                                                if let Some(info) = &backup.more_info {
-                                                    html! { <div class="backup-info">{info}</div> }
-                                                } else {
-                                                    html! {}
-                                                }
-                                            }
-                                        </div>
-                                    }
-                                }
-                                None => {
-                                    // 空存档位
-                                    html! {
-                                        <div key={i}
-                                             class={if i == 9 { "backup-item backup-item-empty backup-item-last" } else { "backup-item backup-item-empty" }}
-                                             onclick={slot_click}
-                                        >
-                                            <div class="backup-name">{format!("存档位置 {}", slot_number)}</div>
-                                            <div class="backup-time">{"空位"}</div>
-                                        </div>
-                                    }
-                                }
-                            }
-                        }).collect::<Html>()
-                    }
-                    </div>
-                </div>
+            <div class="backup-maker">
+                <input
+                    ref={note_input_ref}
+                    class="backup-note-input"
+                    type="text"
+                    placeholder="添加备注（例如：刚拿到核弹法杖...）"
+                />
+                <button class="btn btn-create btn-primary" onclick={on_create_click}>
+                    <span>{"💾 新建备份"}</span>
+                </button>
             </div>
 
-            // 确认弹窗
-            {
-                if *show_dialog {
-                    let (dialog_title, dialog_message, confirm_text) = match *current_operation {
-                        Operation::Save => (
-                            "保存存档",
-                            format!("确认保存到存档位 {} 吗？", selected_slot.unwrap_or(0)),
-                            "保存"
-                        ),
-                        Operation::Load => (
-                            "加载存档",
-                            format!("确认加载存档位 {} 吗？", selected_slot.unwrap_or(0)),
-                            "加载"
-                        ),
-                    };
 
-                    html! {
-                        <div class="modal-overlay" onclick={close_dialog.clone()}>
-                            <div class="modal-dialog" onclick={Callback::from(|e: MouseEvent| e.stop_propagation())}>
-                                <div class="modal-header">
-                                    <h3 class="modal-title">{dialog_title}</h3>
-                                    <button class="modal-close" onclick={close_dialog.clone()}>{"×"}</button>
+            // B. 备份列表区域
+            <div class="backup-list-container mt-4">
+                if backups_list.is_empty() {
+                    <div class="text-center text-slate-500 py-10">
+                        {"暂无备份记录，快去创建一个吧！"}
+                    </div>
+                } else {
+                    { for backups_list.iter().map(|backup| {
+                        let id = backup.id;
+                        let name = backup.name.clone().unwrap_or_else(|| "未命名备份".to_string());
+                        let name_for_restore = name.clone();
+                        let name_for_delete = name.clone();
+
+                        let size_mb = (backup.size as f64) / (1024.0 * 1024.0);
+                        // 简单格式化时间
+                        let time_str = backup.save_time.format(&time::format_description::well_known::Rfc3339).unwrap_or("Unknown".into());
+                        // 实际项目中建议用 time crate 自定义 format_description 来显示更友好的 "YYYY-MM-DD HH:MM"
+
+                        let on_restore = trigger_restore.clone();
+                        let on_delete = trigger_delete.clone();
+
+                        html! {
+                            <div class="backup-card">
+                                // 左侧信息
+                                <div class="card-info">
+                                    <h4>{ &name }</h4>
+                                    <div class="card-meta">
+                                        <span>{ "📅 " }{ &time_str }</span>
+                                        <span>{ "💿 " }{ format!("{:.2} MB", size_mb) }</span>
+                                    </div>
                                 </div>
-                                <div class="modal-body">
-                                    <p>{dialog_message}</p>
-                                </div>
-                                <div class="modal-footer">
-                                    <button class="btn btn-secondary" onclick={close_dialog}>{"取消"}</button>
-                                    <button class="btn btn-primary" onclick={confirm_operation}>{confirm_text}</button>
+
+                                // 右侧操作按钮
+                                <div class="card-actions">
+                                    <button
+                                        class="btn btn-restore"
+                                        onclick={Callback::from(move |_| on_restore.emit((id, name_for_restore.clone())))}
+                                    >
+                                        {"⚡ 还原"}
+                                    </button>
+                                    <button
+                                        class="btn btn-delete"
+                                        onclick={Callback::from(move |_| on_delete.emit((id, name_for_delete.clone())))}
+                                        title="删除此备份"
+                                    >
+                                        {"🗑️"}
+                                    </button>
                                 </div>
                             </div>
-                        </div>
-                    }
-                } else {
-                    html! {}
+                        }
+                    })}
                 }
+            </div>
+
+            // C. 弹窗组件
+            if *modal_state != ModalAction::None {
+                <div class="modal-overlay" onclick={on_modal_cancel.clone()}>
+                    <div class="modal-dialog" onclick={Callback::from(|e: MouseEvent| e.stop_propagation())}>
+                        <div class="modal-header">
+                            <h3 class="modal-title">
+                                {match *modal_state {
+                                    ModalAction::ConfirmRestore(_, _) => "确认还原存档？",
+                                    ModalAction::ConfirmDelete(_, _) => "确认删除备份？",
+                                    _ => ""
+                                }}
+                            </h3>
+                        </div>
+                        <div class="modal-body py-4 text-slate-300">
+                            {match &*modal_state {
+                                ModalAction::ConfirmRestore(_, name) => format!("确定要回退到 [{}] 吗？\n当前的游戏进度将会被覆盖且无法找回！", name),
+                                ModalAction::ConfirmDelete(_, name) => format!("确定要永久删除 [{}] 吗？此操作无法撤销。", name),
+                                _ => "".to_string()
+                            }}
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" onclick={on_modal_cancel}>{"取消"}</button>
+                            <button class="btn btn-primary" onclick={on_modal_confirm}>{"确定"}</button>
+                        </div>
+                    </div>
+                </div>
             }
         </div>
     }
