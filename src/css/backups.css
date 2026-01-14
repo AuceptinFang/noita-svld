@@ -1,3 +1,7 @@
+.backup_container{
+    width: 100%;
+}
+
 /* 空存档位样式 */
 .backup-item-empty {
     opacity: 0.6;

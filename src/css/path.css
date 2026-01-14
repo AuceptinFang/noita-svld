@@ -1,116 +1,125 @@
-/* Path组件样式 */
+/* 容器卡片 */
 .path-container {
-    margin: 15px 0;
-    padding: 16px;
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    max-width: 1000px;
-    margin-left: auto;
-    margin-right: auto;
-    justify-content: center;
+    background-color: #1e293b; /* 深蓝灰色背景 */
+    border: 1px solid #334155;
+    border-radius: 12px;
+    padding: 1.5rem;
+    color: #e2e8f0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    width: 96%;           /* 占据绝大部分屏幕宽度 */
+    max-width: 1920px;    /* 只有在超大屏幕(4k)才限制一下，避免太夸张，平时都会占满 */
+    margin: 2rem auto;    /* 上下留 2rem 间距，左右自动居中 */
+    box-sizing: border-box; /* 确保 padding 不会撑破宽度 */
 }
 
+/* 路径显示区域 */
 .path-display {
-    text-align: center;
-    margin-bottom: 12px;
+    margin-bottom: 1.5rem;
 }
 
-.path-info {
-    font-family: 'Consolas', 'Monaco', monospace;
-    background: white;
-    padding: 8px 12px;
-    border-radius: 4px;
-    border: 1px solid #dee2e6;
-    font-size: 0.8em;
-    color: #495057;
-    word-break: break-all;
+.path-label {
+    display: block;
+    font-size: 0.875rem;
+    color: #94a3b8;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+/* 路径值的样式 - 类似代码块 */
+.path-value {
+    display: block;
+    background-color: #0f172a;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-family: 'Consolas', 'Monaco', monospace; /* 等宽字体更适合显示路径 */
+    font-size: 0.9rem;
+    color: #f1f5f9;
+    word-break: break-all; /* 防止长路径溢出 */
+    border: 1px solid #334155;
+}
+
+/* 状态提示 */
+.status-container {
+    margin-top: 0.75rem;
+    font-size: 0.9rem;
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
+    align-items: flex-start;
 }
 
 .path-status-valid {
-    color: #28a745;
-    font-weight: bold;
+    color: #4ade80; /* 亮绿色 */
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
 }
 
 .path-status-invalid {
-    color: #dc3545;
-    font-weight: bold;
-    white-space: pre-line;
+    color: #f87171; /* 柔和红色 */
+    background-color: rgba(248, 113, 113, 0.1);
+    padding: 0.75rem;
+    border-radius: 6px;
+    white-space: pre-line; /* 关键：让Rust字符串中的 \n 生效 */
+    line-height: 1.5;
+    width: 100%;
+    border-left: 3px solid #f87171;
 }
 
-.path-controls {
-    display: flex;
-    justify-content: center;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
-.path-button {
-    padding: 6px 12px;
-    background: linear-gradient(135deg, #007bff, #0056b3);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.75em;
-    font-weight: 500;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-
-.path-button:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-}
-
+/* 底部控制区布局 */
 .path-form {
     display: flex;
-    gap: 4px;
+    gap: 15px;
+    width: 100%;    /* 确保表单占满容器宽度 */
     align-items: center;
-    width: 400px;
 }
 
+/* 输入框 */
 .path-input {
-    padding: 6px 8px;
-    font-size: 0.75em;
-    width: 180px;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
+    flex: 1;
+    background-color: #334155;
+    border: 1px solid #475569;
+    color: white;
+    padding: 0.8rem 1rem;
+    border-radius: 6px;
     outline: none;
     transition: border-color 0.2s;
+    font-size: 1rem;
 }
 
 .path-input:focus {
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+    border-color: #60a5fa; /* 聚焦时变蓝 */
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
 }
 
-.path-submit {
-    padding: 6px 12px;
-    background: linear-gradient(135deg, #28a745, #1e7e34);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.75em;
+/* 按钮通用样式 */
+.btn {
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
     font-weight: 500;
-    transition: all 0.2s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-
-.path-submit:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-}
-
-.class-controls {
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
     display: flex;
-    justify-content: center;
     align-items: center;
-    width: 100%;
+    gap: 0.5rem;
+    white-space: nowrap;
+}
+
+/* 浏览按钮 (次要操作) */
+.btn-secondary {
+    background-color: #475569;
+    color: white;
+}
+.btn-secondary:hover {
+    background-color: #64748b;
+}
+
+/* 提交按钮 (主要操作) */
+.btn-primary {
+    background-color: #3b82f6;
+    color: white;
+}
+.btn-primary:hover {
+    background-color: #2563eb;
 }

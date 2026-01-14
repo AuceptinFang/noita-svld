@@ -38,7 +38,7 @@ pub fn app() -> Html {
                 <SideBar
                     to={Route::Index}
                 />
-                <main>
+                <main class="main-container">
                     <Switch<Route> render={switch} />
                 </main>
             </div>
