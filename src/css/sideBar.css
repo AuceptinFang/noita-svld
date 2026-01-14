@@ -1,0 +1,35 @@
+/* 侧边栏容器 */
+.sidebar {
+    display: flex;
+    flex-direction: column; /* 垂直排列 */
+    width: 25vh;           /* 固定宽度 */
+    height: 100vh;          /* 占满全屏高度 */
+    background-color: #2c3e50; /* 深色背景 */
+    padding-top: 1rem;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+}
+
+/* 单个导航项 (实际上是 <a> 标签) */
+.sidebar-item {
+    display: block;         /* 让链接占满整行 */
+    padding: 15px 20px;     /* 内边距 */
+    color: #ecf0f1;         /* 字体颜色 */
+    text-decoration: none;  /* 去掉下划线 */
+    font-size: 16px;
+    transition: all 0.3s ease; /* 添加过渡动画 */
+    border-left: 4px solid transparent; /* 预留左侧边框位置 */
+}
+
+/* 鼠标悬停状态 */
+.sidebar-item:hover {
+    background-color: #34495e;
+    color: #fff;
+}
+
+/* 激活状态 (对应 Rust 代码中的 "active" 类) */
+.sidebar-item.active {
+    background-color: #34495e; /* 激活时的背景色 */
+    border-left-color: #3498db; /* 左侧亮条指示器 */
+    color: #fff;
+    font-weight: bold;
+}

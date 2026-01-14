@@ -1,2 +1,3 @@
 pub mod index;
-mod backup;
+pub mod backup;
+pub mod setting;

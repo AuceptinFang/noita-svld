@@ -4,7 +4,9 @@ use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
 use crate::components::*;
+use crate::pages::{index::Index, backup::Backup,setting::Setting};
 use crate::router::Route;
+use crate::components::SideBar;
 
 #[wasm_bindgen]
 extern "C" {
@@ -16,13 +18,13 @@ fn switch(routes: Route) -> Html {
     match routes {
         // 当路由器发现路径是 "/" (Route::Index) 时
         // 它执行下面的代码，把 <Index /> 组件画出来
-        Route::Index => html! { <h1>{ "首页" }</h1> },
+        Route::Index => html! { <Index /> },
 
-        Route::Backup => html! { <h1>{ "存档" }</h1> },
+        Route::Backup => html! { <Backup /> },
 
         Route::Info => html! { <h1>{ "开发信息" }</h1> },
 
-        Route::Settings => html! { <h1>{ "设置" }</h1> },
+        Route::Settings => html! { <Setting /> },
 
         Route::NotFound => html! { <h1>{ "404 页面不存在" }</h1> },
     }
@@ -32,7 +34,14 @@ fn switch(routes: Route) -> Html {
 pub fn app() -> Html {
     html! {
         <BrowserRouter>
-            <Switch<Route> render={switch} />
+            <div class="app-container">
+                <SideBar
+                    to={Route::Index}
+                />
+                <main>
+                    <Switch<Route> render={switch} />
+                </main>
+            </div>
         </BrowserRouter>
     }
 }
