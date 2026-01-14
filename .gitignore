@@ -14,8 +14,8 @@
 *.sqlite3
 
 # Backup files
-/src-tauri/backup/
-backup/
+/src-tauri/backups/
+backups/
 
 # IDE files
 .vscode/

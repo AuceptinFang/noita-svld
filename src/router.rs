@@ -4,7 +4,7 @@ use yew_router::prelude::*;
 pub enum Route {
     #[at("/")]
     Index,
-    #[at("/backup")]
+    #[at("/backups")]
     Backup,
     #[at("/info")]
     Info,

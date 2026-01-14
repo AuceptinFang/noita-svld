@@ -4,7 +4,7 @@ use crate::components::{Path,Backups};
 pub fn backup() -> Html {
 
     html! {
-        <main class="backup-container">
+        <main class="backups-container">
             <Backups/>
         </main>
     }

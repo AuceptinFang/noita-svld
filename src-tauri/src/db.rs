@@ -43,7 +43,7 @@ impl FromRow<'_, sqlx::sqlite::SqliteRow> for Backup {
 }
 
 const SCHEMA_SQL: &str = r"
-CREATE TABLE IF NOT EXISTS backup (
+CREATE TABLE IF NOT EXISTS backups (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT ,
     digest TEXT NOT NULL,
@@ -86,7 +86,7 @@ impl Db {
             .unwrap();
 
         sqlx::query(
-            r#"INSERT INTO backup (name, digest, size, save_time, more_info, slot_id)
+            r#"INSERT INTO backups (name, digest, size, save_time, more_info, slot_id)
                VALUES (?, ?, ?, ?, ?, ?)"#,
         )
         .bind(&backup.name)
@@ -102,7 +102,7 @@ impl Db {
 
     pub async fn get_all_backup(conn: &mut SqliteConnection) -> anyhow::Result<Vec<Backup>> {
         let backups = sqlx::query_as::<_, Backup>(
-            r#"SELECT id, name, digest, size, save_time, more_info, slot_id FROM backup"#,
+            r#"SELECT id, name, digest, size, save_time, more_info, slot_id FROM backups"#,
         )
         .fetch_all(conn)
         .await?;
@@ -115,7 +115,7 @@ impl Db {
         id: i32,
     ) -> anyhow::Result<Option<Backup>> {
         let backup = sqlx::query_as::<_, Backup>(
-            r#"SELECT id, name, digest, size, save_time, more_info, slot_id FROM backup WHERE id = ?"#,
+            r#"SELECT id, name, digest, size, save_time, more_info, slot_id FROM backups WHERE id = ?"#,
         )
         .bind(id)
         .fetch_optional(conn)
@@ -125,7 +125,7 @@ impl Db {
     }
 
     pub async fn delete_backup(conn: &mut SqliteConnection, backup: &Backup) -> anyhow::Result<()> {
-        sqlx::query("DELETE FROM backup WHERE id = ?")
+        sqlx::query("DELETE FROM backups WHERE id = ?")
             .bind(backup.id)
             .execute(conn)
             .await?;
@@ -138,7 +138,7 @@ impl Db {
         slot_id: i8,
     ) -> anyhow::Result<Option<Backup>> {
         let backup = sqlx::query_as::<_, Backup>(
-            r#"SELECT id, name, digest, size, save_time, more_info, slot_id FROM backup WHERE slot_id = ?"#,
+            r#"SELECT id, name, digest, size, save_time, more_info, slot_id FROM backups WHERE slot_id = ?"#,
         )
         .bind(slot_id)
         .fetch_optional(conn)
@@ -153,7 +153,7 @@ impl Db {
         backup_id: i32,
         slot_id: Option<i8>,
     ) -> anyhow::Result<()> {
-        sqlx::query("UPDATE backup SET slot_id = ? WHERE id = ?")
+        sqlx::query("UPDATE backups SET slot_id = ? WHERE id = ?")
             .bind(slot_id)
             .bind(backup_id)
             .execute(conn)
@@ -166,7 +166,7 @@ impl Db {
         conn: &mut SqliteConnection,
         slot_id: i8,
     ) -> anyhow::Result<()> {
-        sqlx::query("UPDATE backup SET slot_id = NULL WHERE slot_id = ?")
+        sqlx::query("UPDATE backups SET slot_id = NULL WHERE slot_id = ?")
             .bind(slot_id)
             .execute(conn)
             .await?;

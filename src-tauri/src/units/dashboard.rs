@@ -16,7 +16,7 @@ pub fn get_dashboard_stats() -> Result<DashboardStats, String> {
     let mut total_size : u64 = 0;
     let is_ready : bool = true;
 
-    let backup_root = "./backup/".to_string();
+    let backup_root = "./backups/".to_string();
     // 计算文件夹数量
     let count = fs::read_dir(&backup_root)
         .map_err(|e| e.to_string())?
