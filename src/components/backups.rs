@@ -37,7 +37,7 @@ enum ModalAction {
 }
 
 #[function_component(Backups)]
-pub fn backups(props: &BackupsProps) -> Html {
+pub fn backups() -> Html {
     let backups_list = use_state(|| Vec::<Backup>::new());
     let note_input_ref = use_node_ref();
     let modal_state = use_state(|| ModalAction::None);

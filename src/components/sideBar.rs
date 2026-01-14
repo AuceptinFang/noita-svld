@@ -38,7 +38,7 @@ pub fn side_bar(props: &SidebarProps) -> Html {
 
             // 信息 (Info)
             <Link<Route> to={Route::Info} classes={get_classes(Route::Info)}>
-                { "信息" }
+                { "关于" }
             </Link<Route>>
         </nav>
     }

@@ -6,107 +6,97 @@ use chrono::Local;
 use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;
 use log::{info, debug, error, warn, trace};
+use dotenvy::dotenv;
+use serde::{Deserialize, Serialize};
+use std::sync::Mutex; // 如果涉及到多线程读写，可以用这个，这里简单起见先不用
 
-pub fn find_env_file() -> Result<PathBuf, String> {
-    let possible_paths = [".env", "../.env", "../../.env"];
-    possible_paths
-        .iter()
-        .find(|&&p| Path::new(p).exists())
-        .map(|&p| PathBuf::from(p))
-        .ok_or_else(|| {
-            error!("没有找到.env文件");
-            "没有找到 .env 文件".to_string()
-        })
+
+// 定义配置结构体，自动支持序列化
+#[derive(Debug, Serialize, Deserialize, Default)]
+struct AppConfig {
+    // 使用 Option，如果是 None 代表用户还没设置
+    save_path: Option<String>,
 }
 
-///读env文件保存的path字段
-pub fn load_save_path_from_env() -> Option<String> {
-    //莫名其妙的路径寻找，但没关系可以多找找
-    let possible_paths = [".env", "../.env", "../../.env"];
-    
-    for env_file_path in &possible_paths {
-    
-        if let Ok(content) = fs::read_to_string(env_file_path) {
-            debug!("[load_save_path_from_env] 成功读取.env文件");
-            
-            // 逐行解析，查找SAVE_PATH
-            for line in content.lines() {
-                let line = line.trim();
-                if line.starts_with("SAVE_PATH=") {
-                    let path = line.strip_prefix("SAVE_PATH=").unwrap_or("").trim();
-                    if !path.is_empty() {
-                        debug!("[load_save_path_from_env] 找到SAVE_PATH: {}", path);
-                        return Some(path.to_string());
-                    }
+pub struct ConfigManager;
+
+impl ConfigManager {
+    fn get_config_file_path() -> PathBuf {
+        let exe_path = env::current_exe().unwrap_or_else(|_| PathBuf::from("."));
+        let exe_dir = exe_path.parent().unwrap_or_else(|| Path::new("."));
+        exe_dir.join("config.json")
+    }
+
+    /// 读取配置
+    fn load() -> AppConfig {
+        let path = Self::get_config_file_path();
+        if path.exists() {
+            match fs::read_to_string(&path) {
+                Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
+                Err(e) => {
+                    error!("读取配置文件失败: {}", e);
+                    AppConfig::default()
                 }
             }
-            error!("[load_save_path_from_env] .env文件中未找到SAVE_PATH");
         } else {
-            error!("[load_save_path_from_env] 无法读取.env文件: {}", env_file_path);
+            AppConfig::default()
         }
     }
-    
-    None
+
+    /// 保存配置
+    fn save(config: &AppConfig) -> Result<(), String> {
+        let path = Self::get_config_file_path();
+        let content = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
+
+        fs::write(path, content).map_err(|e| e.to_string())?;
+        Ok(())
+    }
 }
 
-/// 输入字符串（切片），写入.env文件保存
+// --- Tauri Commands 改造 ---
+
 #[tauri::command]
 pub fn save_path_to_env(path: &str) -> Result<(), String> {
-    debug!("[save_path_to_env] {} 存入 {}",Local::now(), path);
+    debug!("[save_config] 保存路径: {}", path);
 
-    let env_file = find_env_file().map_err(|e| e.to_string())?;
+    // 1. 读取现有配置（保留其他可能存在的字段）
+    let mut config = ConfigManager::load();
 
-    // 读取现有的.env内容
-    let content = if env_file.exists() {
-        fs::read_to_string(&env_file).unwrap_or_default()
-    } else {
-        String::new()
-    };
+    // 2. 修改路径
+    config.save_path = Some(path.to_string());
 
-    let lines: Vec<String> = content
-        .lines()
-        .filter(|line| !line.starts_with("SAVE_PATH="))
-        .map(|s| s.to_string())
-        .collect();
+    // 3. 写入文件（serde 自动处理 json 格式）
+    ConfigManager::save(&config)?;
 
-    // 新的内容，首先加入原有内容，再添加SAVE_PATH
-    let mut new_content = lines.join("\n");
-    if !new_content.is_empty() {
-        new_content.push('\n'); // 保证每行之间有换行符
-    }
-    new_content.push_str(&format!("SAVE_PATH={}", path));
-
-    // 写入新内容
-    fs::write(&env_file, new_content).map_err(|e| {
-        format!("写入.env文件失败: {}", e)
-    })?;
-    
-    info!("[save_path_to_env] 成功保存路径到.env: {}", path);
+    info!("配置已更新");
     Ok(())
 }
 
-/// 如果env文件里已经写入，则返回；如果没有，则默认，返回路径
 #[tauri::command]
 pub fn get_save_path() -> Result<String, String> {
-    debug!("[get_save_path] {}",Local::now());
-    let path = load_save_path_from_env();
-    let dir = if let Some(path) = path {
-        // 如果从env文件读取到路径，直接使用，不要重新保存
-        PathBuf::from(&path)
-    } else {
-        // 只有在没有env设置时，才使用默认路径并保存到env
-        let username =
-            env::var("USERNAME").map_err(|_| "自动获取路径失败，请手动输入存档路径".to_string())?;
-        let mut dir = PathBuf::from("C:/Users/");
-        dir.push(username);
-        dir.push("AppData/LocalLow/Nolla_Games_Noita/save00");
+    let config = ConfigManager::load();
 
-        // 只在使用默认路径时才保存到env文件
-        save_path_to_env(dir.to_str().unwrap()).map_err(|e| e.to_string())?;
-        dir
+    // 如果配置文件里有，直接返回
+    if let Some(path) = config.save_path {
+        debug!("[get_save_path] 从配置加载: {}", path);
+        return Ok(path);
+    }
+
+    // 如果没有，生成默认路径
+    let default_path = if let Some(home) = dirs::home_dir() {
+        // 手动拼接比较稳妥
+        home.join("AppData").join("LocalLow").join("Nolla_Games_Noita").join("save00")
+    } else {
+        return Err("无法获取系统用户目录".to_string());
     };
-    info!("[get_save_path:]{:?}", dir);
-    Ok(dir.to_string_lossy().to_string())
+
+    let path_str = default_path.to_string_lossy().to_string();
+
+    // 保存默认值到配置文件
+    save_path_to_env(&path_str)?;
+
+    info!("[get_save_path] 使用默认路径: {}", path_str);
+    Ok(path_str)
 }
 
 #[tauri::command]
@@ -124,6 +114,7 @@ pub async fn select_save_path(app: AppHandle) -> Option<String> {
         None
     }
 }
+
 
 #[tauri::command]
 pub async fn verify_validation() -> Result<(), String> {

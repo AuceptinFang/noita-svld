@@ -20,7 +20,7 @@ struct SavePathArgs {
 }
 
 #[function_component(Path)]
-pub fn path(props: &PathProps) -> Html {
+pub fn path() -> Html {
     // 默认显示的提示文本
     let current_path = use_state(|| "正在检测存档路径...".to_string());
     let is_valid = use_state(|| false);
@@ -29,7 +29,6 @@ pub fn path(props: &PathProps) -> Html {
     {
         let current_path = current_path.clone();
         let is_valid = is_valid.clone();
-        let on_valid_change = props.on_valid_change.clone();
 
         use_effect_with((), move |_| {
             spawn_local(async move {
@@ -40,11 +39,9 @@ pub fn path(props: &PathProps) -> Html {
                         let v = invoke("verify_validation", JsValue::NULL).await;
                         let valid = v.as_string().is_some();
                         is_valid.set(valid);
-                        on_valid_change.emit(valid);
                     }
                     None => {
                         current_path.set("未设置路径".to_string());
-                        on_valid_change.emit(false);
                     }
                 }
             });
@@ -56,12 +53,10 @@ pub fn path(props: &PathProps) -> Html {
     let on_select_folder = {
         let current_path = current_path.clone();
         let is_valid = is_valid.clone();
-        let on_valid_change = props.on_valid_change.clone();
 
         Callback::from(move |_: MouseEvent| {
             let current_path = current_path.clone();
             let is_valid = is_valid.clone();
-            let on_valid_change = on_valid_change.clone();
             spawn_local(async move {
                 // 调用 Tauri 的选择文件夹弹窗
                 let response = invoke("select_save_path", JsValue::NULL).await;
@@ -79,7 +74,6 @@ pub fn path(props: &PathProps) -> Html {
                         let valid = v.as_string().is_some();
 
                         is_valid.set(valid);
-                        on_valid_change.emit(valid);
                     }
                     None => return, // 用户取消了选择
                 }

@@ -4,7 +4,7 @@ use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
 use crate::components::*;
-use crate::pages::{index::Index, backup::Backup,setting::Setting};
+use crate::pages::{index::Index, backup::Backup,setting::Setting,info::Info};
 use crate::router::Route;
 use crate::components::SideBar;
 
@@ -22,7 +22,7 @@ fn switch(routes: Route) -> Html {
 
         Route::Backup => html! { <Backup /> },
 
-        Route::Info => html! { <h1>{ "开发信息" }</h1> },
+        Route::Info => html! { <Info/> },
 
         Route::Settings => html! { <Setting /> },
 

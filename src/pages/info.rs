@@ -1,11 +1,9 @@
 use yew::prelude::*;
-use crate::components::Path;
-#[function_component(Setting)]
+#[function_component(Info)]
 pub fn home() -> Html {
     html! {
         <div class="dashboard-container">
-            <h1>{ "设置" }</h1>
-            <Path/>
+            <h1>{ "有bug请随缘等更新" }</h1>
         </div>
 
     }

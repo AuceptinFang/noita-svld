@@ -1,0 +1,170 @@
+/* --- Dashboard 容器 --- */
+.dashboard-container {
+    width: 90%;
+    max-width: 1200px;
+    margin: 0 auto;
+    min-height: 90vh; /* 视口高度的90%，留点余地 */
+    display: flex;
+    flex-direction: column;
+
+    padding: 2rem 0;
+    box-sizing: border-box;
+    color: #000000;
+    animation: fadeIn 0.5s ease-out; /* 简单的淡入动画 */
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Hero 区域 --- */
+.hero-section {
+    text-align: center;
+    margin: 4px 4px 15vh  4px;
+}
+
+.hero-title {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 2.5rem;
+    background: linear-gradient(to right, #fdd366, #fc8a5d, #b84950);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+    line-height: 1.2; /* 设置合适的行高 */
+}
+
+.hero-subtitle {
+    color: #94a3b8;
+    font-size: 1.1rem;
+}
+
+/* --- 统计卡片网格 --- */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+}
+
+.stat-card {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+    padding: 1.5rem;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon {
+    font-size: 2rem;
+    background-color: #0f172a;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 50%;
+}
+
+.stat-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #f1f5f9;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* --- 快速动作卡片 (大按钮) --- */
+.actions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* 两列 */
+    gap: 2rem;
+    margin-bottom: 3rem;
+}
+
+.action-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2rem;
+    border-radius: 16px;
+    text-decoration: none; /* 去掉链接下划线 */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
+}
+
+.action-content h3 {
+    margin: 0.5rem 0;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.action-content p {
+    margin: 0;
+    color: #ffffff; /* 浅灰 */
+}
+
+.action-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.action-arrow {
+    font-size: 2rem;
+    opacity: 0;
+    transform: translateX(-10px);
+    transition: all 0.3s;
+}
+
+/* 主操作卡片 (去备份) */
+.action-primary {
+    background: linear-gradient(135deg, #22a6f0 0%, #2656dc 100%);
+    box-shadow: 0 10px 15px -3px rgba(105, 148, 244, 0.3);
+}
+.action-primary:hover {
+    transform: scale(1.02);
+    box-shadow: 0 20px 25px -5px rgba(37, 99, 235, 0.4);
+}
+
+/* 次操作卡片 (去设置) */
+.action-secondary {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    box-shadow: 0 10px 20px -5px rgba(245, 158, 11, 0.4);
+    border: 2px solid #fbbf24; /* 增加边框 */
+}
+.action-secondary:hover {
+    box-shadow: 0 15px 30px -5px rgba(245, 158, 11, 0.5);
+    transform: scale(1.02);
+}
+
+/* 悬停时箭头动效 */
+.action-card:hover .action-arrow {
+    opacity: 1;
+    transform: translateX(0);
+    color: white;
+}
+
+/* --- 底部提示 --- */
+.footer-tip {
+    display: flex;
+    text-align: center;
+    color: #64748b;
+    font-style: italic;
+    font-size: 0.9rem;
+    margin-top: auto;
+    flex-direction: column-reverse;
+}
