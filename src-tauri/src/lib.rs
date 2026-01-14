@@ -1,9 +1,11 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod db;
 pub mod units;
+pub mod backup;
 use anyhow::Result;
-use units::backup::*;
+use backup::commands::*;
 use units::path::*;
+use units::dashboard::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() -> Result<()> {
@@ -18,6 +20,7 @@ pub fn run() -> Result<()> {
             save_backup,
             get_all_backups,
             load_backup,
+            get_dashboard_stats,
         ])
         .run(tauri::generate_context!())?;
 
