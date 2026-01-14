@@ -18,7 +18,6 @@ pub fn run() -> Result<()> {
             save_backup,
             get_all_backups,
             load_backup,
-            write_log
         ])
         .run(tauri::generate_context!())?;
 
