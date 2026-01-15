@@ -42,7 +42,7 @@ pub fn backups() -> Html {
     let note_input_ref = use_node_ref();
     let modal_state = use_state(|| ModalAction::None);
 
-    // --- 1. 获取备份列表 (封装成函数方便复用) ---
+    // 获取备份列表
     let fetch_backups = {
         let backups_list = backups_list.clone();
         move || {
@@ -70,7 +70,7 @@ pub fn backups() -> Html {
         });
     }
 
-    // --- 2. 创建备份 (Create) ---
+    // 创建备份 (Create)
     let on_create_click = {
         let note_input_ref = note_input_ref.clone();
         let fetch = fetch_backups.clone();
@@ -95,7 +95,7 @@ pub fn backups() -> Html {
         })
     };
 
-    // --- 3. 触发弹窗逻辑 ---
+    // 触发弹窗逻辑
     let trigger_restore = {
         let modal_state = modal_state.clone();
         Callback::from(move |(id, name): (i32, String)| {
@@ -110,7 +110,7 @@ pub fn backups() -> Html {
         })
     };
 
-    // --- 4. 执行确认操作 (Modal Confirm) ---
+    // 执行确认操作 (Modal Confirm)
     let on_modal_confirm = {
         let modal_state = modal_state.clone();
         let fetch = fetch_backups.clone();

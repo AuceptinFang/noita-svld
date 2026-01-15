@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
+use web_sys::console;
 
 #[derive(Properties, PartialEq)]
 pub struct PathProps {
@@ -25,7 +26,7 @@ pub fn path() -> Html {
     let current_path = use_state(|| "正在检测存档路径...".to_string());
     let is_valid = use_state(|| false);
 
-    // --- 1. 初始化检测逻辑 ---
+    // 初始化检测逻辑
     {
         let current_path = current_path.clone();
         let is_valid = is_valid.clone();
@@ -37,7 +38,9 @@ pub fn path() -> Html {
                     Some(path) => {
                         current_path.set(path);
                         let v = invoke("verify_validation", JsValue::NULL).await;
+                        console::log_1(&format!("收到结果：{:?}", v).into());
                         let valid = v.as_string().is_some();
+                        console::log_1(&format!("验证结果：{}", valid).into());
                         is_valid.set(valid);
                     }
                     None => {
@@ -49,7 +52,7 @@ pub fn path() -> Html {
         });
     }
 
-    // --- 2. 浏览文件夹逻辑 ---
+    // 浏览文件夹
     let on_select_folder = {
         let current_path = current_path.clone();
         let is_valid = is_valid.clone();
@@ -72,6 +75,7 @@ pub fn path() -> Html {
                         // 3. 再次验证有效性
                         let v = invoke("verify_validation", JsValue::NULL).await;
                         let valid = v.as_string().is_some();
+                        console::log_1(&format!("验证结果：{}", valid).into());
 
                         is_valid.set(valid);
                     }

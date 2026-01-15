@@ -34,7 +34,7 @@ impl DashboardStats {
         } else if size < GB {
             format!("{:.1} MB", size / MB)
         } else {
-            format!("{:.2} GB", size / GB) // GB 通常大，保留2位小数
+            format!("{:.2} GB", size / GB) // 保留2位小数
         }
     }
 }
@@ -71,12 +71,11 @@ pub fn home() -> Html {
 
     html! {
         <div class="dashboard-container">
-            // 1. 顶部 Hero 区域
             <div class="hero-section">
                 <h1 class="hero-title">{"Noita 存档管理器"}</h1>
             </div>
 
-            // 2. 状态统计卡片 (Dashboard Stats)
+            // 状态卡片 (Dashboard Stats)
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-icon">{"📦"}</div>
