@@ -86,7 +86,8 @@ pub fn backups() -> Html {
 
             spawn_local(async move {
                 // 调用 Tauri: create_backup
-                let args = serde_wasm_bindgen::to_value(&json!({ "note": note })).unwrap();
+                let args = serde_wasm_bindgen::to_value(&json!({ "name": note })).unwrap();
+                console::log_1(&format!("name: {}", note).into());
                 invoke("save_backup", args).await;
 
                 // 清空输入框并刷新列表

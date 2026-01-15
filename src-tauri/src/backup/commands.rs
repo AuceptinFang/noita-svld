@@ -6,15 +6,16 @@ use crate::backup::service::*;
 use crate::backup::fs_ops::*;
 use chrono::Local;
 use log::{debug, error, info};
+use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use crate::units::path;
 
 /// 在数据库里留档
 #[tauri::command]
-pub async fn save_backup(description : Option<&str>) -> Result<String, String> {
+pub async fn save_backup(name : Option<&str>) -> Result<String, String> {
     debug!("[save_back_up] {}", Local::now());
     // 先保存到本地
-    let backup_name = match save_local().await{
+    let mut backup_name = match save_local().await{
         Ok(name) => name,
         Err(e) => {
             error!("保存时出错: {}",e);
@@ -40,20 +41,23 @@ pub async fn save_backup(description : Option<&str>) -> Result<String, String> {
         }
     };
     let save_time = OffsetDateTime::now_utc();
-    let more_info = description.map(|s| s.to_string());
-    // 创建Backup结构体
+
+    let slot_name: String = name
+        .map(|n| n.to_string())
+        .unwrap_or_else(|| {
+            let time_str = save_time
+                .format(&Rfc3339)
+                .unwrap_or_default();
+            format!("存档_{}", time_str)
+        });
+
     let backup = Backup {
-        id: 0, // 数据库自增，这里设为0
-        name: Some(format!(
-            "存档_{}",
-            save_time
-                .format(&time::format_description::well_known::Rfc3339)
-                .unwrap_or_default()
-        )),
+        id: 0,
+        name: Some(slot_name),
         digest,
         size,
         save_time,
-        more_info,
+        more_info: None,
     };
 
     // 连接数据库并保存

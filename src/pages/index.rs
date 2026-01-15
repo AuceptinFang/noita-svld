@@ -5,7 +5,7 @@ use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
 use crate::components::Backup;
-use crate::router::Route; // 确保引入了你的 Route 枚举
+use crate::router::Route; 
 
 #[wasm_bindgen]
 extern "C" {

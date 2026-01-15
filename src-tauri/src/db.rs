@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS backups (
     digest TEXT NOT NULL,
     size INTEGER NOT NULL,
     save_time TEXT DEFAULT (datetime('now')),
-    more_info TEXT,
+    more_info TEXT
 );
 ";
 
