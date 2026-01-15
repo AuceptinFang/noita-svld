@@ -1,6 +1,5 @@
 use std::fs;
 use std::path::Path;
-use super::{fs_ops, service};
 use crate::db::{Backup, Db};
 use crate::backup::service::*;
 use crate::backup::fs_ops::*;
@@ -202,9 +201,62 @@ pub async fn load_backup(backup_id: i32) -> Result<String, String> {
     debug!("{}", success_msg);
     Ok(success_msg)
 }
+
+#[tauri::command]
+pub async fn delete_backup(id : i32) -> Result<(), String> {
+    info!("[delete_backup]:删除 {}", id);
+
+    let db_path = "./db/backups.db".to_string();
+    let mut conn = Db::new(db_path).await.map_err(|e| {
+        error!("建立数据库连接出错: {}", e);
+        e.to_string()
+    })?;
+
+    // 根据id拿到文件夹名
+    let backup = Db::get_backup_by_id(&mut conn, id)
+        .await
+        .map_err(|e| {
+            error!("获取存档出错: {}", e);
+            e.to_string()
+        })?;
+
+    let backup = match backup {
+        Some(b) => b,
+        None => {
+            error!("未找到ID为{}的备份", id);
+            return Err(format!("未找到ID为{}的备份", id));
+        }
+    };
+
+    // 构建备份文件路径 (命名方式: backup_{digest前12位})
+    let digest_prefix = &backup.digest[..12];
+    let backup_name = format!("backup_{}", digest_prefix);
+    let backup_path = Path::new("./backups").join(&backup_name);
+
+    // 删除实际存档
+    if backup_path.exists() {
+        remove_directory(&backup_path).map_err(|e| {
+            error!("删除备份文件夹失败: {}", e);
+            e.to_string()
+        })?;
+        info!("已删除备份文件夹: {}", backup_path.display());
+    } else {
+        info!("备份文件夹不存在，跳过删除: {}", backup_path.display());
+    }
+
+    // 删除数据库记录
+    Db::delete_backup(&mut conn, id).await.map_err(|e| {
+        error!("删除存档 {}失败：{}", id,e);
+        format!("删除存档 {} 失败: {}", id, e)
+    })?;
+
+    info!("成功删除存档 ID: {}", id);
+    Ok(())
+}
+
+
 #[cfg(test)]
 mod tests{
-    use super::*;
     #[test]
     fn test_description(){
         let d1 : Option<&str> = Option::Some("d1");

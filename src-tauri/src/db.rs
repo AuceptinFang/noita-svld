@@ -120,9 +120,9 @@ impl Db {
         Ok(backup)
     }
 
-    pub async fn delete_backup(conn: &mut SqliteConnection, backup: &Backup) -> anyhow::Result<()> {
+    pub async fn delete_backup(conn: &mut SqliteConnection, id: i32) -> anyhow::Result<()> {
         sqlx::query("DELETE FROM backups WHERE id = ?")
-            .bind(backup.id)
+            .bind(id)
             .execute(conn)
             .await?;
         Ok(())

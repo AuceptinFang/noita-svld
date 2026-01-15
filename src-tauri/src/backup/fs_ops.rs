@@ -185,3 +185,10 @@ pub fn copy_directory(src: &Path, dst: &Path) -> Result<()> {
 
     Ok(())
 }
+
+pub fn remove_directory(path: &Path) -> Result<()> {
+    if path.exists() {
+        fs::remove_dir_all(path).with_context(|| format!("无法删除目录: {:?}", path))?;
+    }
+    Ok(())
+}

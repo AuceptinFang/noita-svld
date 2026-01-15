@@ -141,13 +141,14 @@ pub fn backups() -> Html {
             spawn_local(async move {
                 match current_action {
                     ModalAction::ConfirmRestore(id, _) => {
-                        let args = serde_wasm_bindgen::to_value(&json!({ "backupId": id })).unwrap();
+                        let args = serde_wasm_bindgen::to_value(&json!({ "id": id })).unwrap();
                         let _ = invoke("load_backup", args).await;
                         // 还原后可能不需要刷新列表，但为了保险起见可以刷新
                     },
                     ModalAction::ConfirmDelete(id, _) => {
-                        let args = serde_wasm_bindgen::to_value(&json!({ "backupId": id })).unwrap();
+                        let args = serde_wasm_bindgen::to_value(&json!({ "id": id })).unwrap();
                         let _ = invoke("delete_backup", args).await;
+                        console::log_1(&format!("删除存档：{}", id).into());
                         fetch(); // 删除后必须刷新列表
                     },
                     ModalAction::ShowError(_) => {
@@ -181,7 +182,7 @@ pub fn backups() -> Html {
             </div>
 
 
-            // B. 备份列表区域
+            // 备份列表区域
             <div class="backup-list-container mt-4">
                 if backups_list.is_empty() {
                      <div class="backup-card">
@@ -240,7 +241,7 @@ pub fn backups() -> Html {
                 }
             </div>
 
-            // C. 弹窗组件
+            // 弹窗组件
             if *modal_state != ModalAction::None {
                 <div class="modal-overlay" onclick={on_modal_cancel.clone()}>
                     <div class="modal-dialog" onclick={Callback::from(|e: MouseEvent| e.stop_propagation())}>

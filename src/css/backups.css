@@ -36,7 +36,7 @@
 
 /* --- 备份历史列表 (滚动区) --- */
 .backup-list-container {
-    margin: 1vh 4px 2vh 4vh;
+    margin: 4vh 4px 2vh 4vh;
     flex: 1; /* 占据剩余所有高度 */
     overflow-y: auto; /* 允许垂直滚动 */
     overflow-x: hidden; /* 禁止横向滚动 */

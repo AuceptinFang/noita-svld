@@ -10,6 +10,19 @@ use units::dashboard::*;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() -> Result<()> {
     tauri::Builder::default()
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Folder { 
+                        path: std::path::PathBuf::from("./"),
+                        file_name: Some("app.log".to_string()) 
+                    }),
+                ])
+                .level(log::LevelFilter::Debug)
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
@@ -21,6 +34,7 @@ pub fn run() -> Result<()> {
             get_all_backups,
             load_backup,
             get_dashboard_stats,
+            delete_backup,
         ])
         .run(tauri::generate_context!())?;
 
