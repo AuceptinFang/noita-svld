@@ -5,8 +5,8 @@ use std::fs;
 use std::path::Path;
 use log::info;
 use crate::backup::fs_ops::*;
-/// 把目标存档直接复制到本地，保证开销最小
 
+/// 把目标存档直接复制到本地
 pub async fn save_local() -> Result<String, String> {
     let save_path = path::get_save_path().map_err(|e| e.to_string())?;
     let source_path = Path::new(&save_path);

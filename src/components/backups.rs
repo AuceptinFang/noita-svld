@@ -154,7 +154,7 @@ pub fn backups() -> Html {
                     ref={note_input_ref}
                     class="backup-note-input"
                     type="text"
-                    placeholder="添加备注"
+                    placeholder="存档名"
                 />
                 <button class="btn btn-create btn-primary" onclick={on_create_click}>
                     <span>{"Save"}</span>

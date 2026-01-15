@@ -15,7 +15,7 @@ use crate::units::path;
 pub async fn save_backup(name : Option<&str>) -> Result<String, String> {
     debug!("[save_back_up] {}", Local::now());
     // 先保存到本地
-    let mut backup_name = match save_local().await{
+    let backup_name = match save_local().await{
         Ok(name) => name,
         Err(e) => {
             error!("保存时出错: {}",e);
@@ -43,6 +43,7 @@ pub async fn save_backup(name : Option<&str>) -> Result<String, String> {
     let save_time = OffsetDateTime::now_utc();
 
     let slot_name: String = name
+        .filter(|n| !n.trim().is_empty())
         .map(|n| n.to_string())
         .unwrap_or_else(|| {
             let time_str = save_time
