@@ -33,6 +33,27 @@ pub async fn save_backup(name : Option<&str>) -> Result<String, String> {
         }
     };
 
+    // 连接数据库
+    let db_path = "./db/backups.db".to_string();
+    let mut conn = match Db::new(db_path).await{
+        Ok(db) => db,
+        Err(e) => {
+            error!("建立数据库连接出错: {}",e);
+            return Err(e.to_string());
+        }
+    };
+
+    // 检查是否已存在相同 digest 的备份
+    if let Some(existing_backup) = Db::get_backup_by_digest(&mut conn, &digest).await.map_err(|e| {
+        error!("查询数据库失败: {}", e);
+        e.to_string()
+    })? {
+        let existing_name = existing_backup.name.as_deref().unwrap_or("未命名");
+        let msg = format!("该存档内容已备份过，名称为: {}", existing_name);
+        info!("{}", msg);
+        return Err(msg);
+    }
+
     let size = match calculate_directory_size(&backup_path).map_err(|e| e.to_string()){
         Ok(size) => size,
         Err(e) => {
@@ -59,16 +80,6 @@ pub async fn save_backup(name : Option<&str>) -> Result<String, String> {
         size,
         save_time,
         more_info: None,
-    };
-
-    // 连接数据库并保存
-    let db_path = "./db/backups.db".to_string();
-    let mut conn = match Db::new(db_path).await{
-        Ok(db) => db,
-        Err(e) => {
-            error!("建立数据库连接出错: {}",e);
-            return Err(e.to_string());
-        }
     };
 
     match Db::store_backup(&backup, &mut conn).await {

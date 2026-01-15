@@ -127,5 +127,19 @@ impl Db {
             .await?;
         Ok(())
     }
+
+    pub async fn get_backup_by_digest(
+        conn: &mut SqliteConnection,
+        digest: &str,
+    ) -> anyhow::Result<Option<Backup>> {
+        let backup = sqlx::query_as::<_, Backup>(
+            r#"SELECT id, name, digest, size, save_time, more_info FROM backups WHERE digest = ?"#,
+        )
+            .bind(digest)
+            .fetch_optional(conn)
+            .await?;
+
+        Ok(backup)
+    }
 }
 

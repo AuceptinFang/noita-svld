@@ -1,9 +1,13 @@
 .app-container {
     display: flex;
     min-height: 100vh;
+    max-height: 100vh;
+    overflow: hidden; /* 防止 app 容器滚动 */
 }
 .main-container{
     display: flex;
     min-height: 100vh;
+    max-height: 100vh; /* 限制最大高度，防止整页滚动 */
     width: 100%;
+    overflow: hidden; /* 防止主容器滚动 */
 }

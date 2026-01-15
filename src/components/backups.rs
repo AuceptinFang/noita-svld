@@ -5,7 +5,6 @@ use serde_json::json;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use web_sys::console;
-use crate::components::Path;
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct BackupsProps {
@@ -14,8 +13,8 @@ pub struct BackupsProps {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
-    async fn invoke(cmd: &str, args: JsValue) -> JsValue;
+    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"], catch)]
+    async fn invoke(cmd: &str, args: JsValue) -> Result<JsValue, JsValue>;
 }
 
 // 对应后端的数据结构
@@ -34,6 +33,7 @@ enum ModalAction {
     None,
     ConfirmRestore(i32, String), // id, name
     ConfirmDelete(i32, String),  // id, name
+    ShowError(String),           // 错误信息
 }
 
 #[function_component(Backups)]
@@ -48,15 +48,19 @@ pub fn backups() -> Html {
         move || {
             let backups_list = backups_list.clone();
             spawn_local(async move {
-                let response = invoke("get_all_backups", JsValue::NULL).await;
-                match serde_wasm_bindgen::from_value::<Vec<Backup>>(response) {
-                    Ok(mut data) => {
-                        console::log_1(&"获取存档正常".into());
-                        // 按时间倒序排序（最新的在最上面）
-                        data.sort_by(|a, b| b.save_time.cmp(&a.save_time));
-                        backups_list.set(data);
+                match invoke("get_all_backups", JsValue::NULL).await {
+                    Ok(response) => {
+                        match serde_wasm_bindgen::from_value::<Vec<Backup>>(response) {
+                            Ok(mut data) => {
+                                console::log_1(&"获取存档正常".into());
+                                // 按时间倒序排序（最新的在最上面）
+                                data.sort_by(|a, b| b.save_time.cmp(&a.save_time));
+                                backups_list.set(data);
+                            }
+                            Err(e) => console::log_1(&format!("解析失败: {:?}", e).into()),
+                        }
                     }
-                    Err(e) => web_sys::console::log_1(&format!("Err: {:?}", e).into()),
+                    Err(e) => console::log_1(&format!("获取失败: {:?}", e).into()),
                 }
             });
         }
@@ -75,6 +79,7 @@ pub fn backups() -> Html {
     let on_create_click = {
         let note_input_ref = note_input_ref.clone();
         let fetch = fetch_backups.clone();
+        let modal_state = modal_state.clone();
 
         Callback::from(move |e: MouseEvent| {
             e.prevent_default(); // 防止Form提交刷新
@@ -83,16 +88,28 @@ pub fn backups() -> Html {
 
             let fetch = fetch.clone();
             let input_clone = input.clone();
+            let modal_state = modal_state.clone();
 
             spawn_local(async move {
-                // 调用 Tauri: create_backup
+                // 调用 Tauri: save_backup
                 let args = serde_wasm_bindgen::to_value(&json!({ "name": note })).unwrap();
                 console::log_1(&format!("name: {}", note).into());
-                invoke("save_backup", args).await;
-
-                // 清空输入框并刷新列表
-                input_clone.set_value("");
-                fetch();
+                
+                match invoke("save_backup", args).await {
+                    Ok(_) => {
+                        console::log_1(&"保存成功".into());
+                        // 清空输入框并刷新列表
+                        input_clone.set_value("");
+                        fetch();
+                    }
+                    Err(err) => {
+                        // 从 JsValue 中提取错误信息
+                        let err_msg = err.as_string().unwrap_or_else(|| "保存失败".to_string());
+                        console::log_1(&format!("保存失败: {}", err_msg).into());
+                        // 显示错误弹窗
+                        modal_state.set(ModalAction::ShowError(err_msg));
+                    }
+                }
             });
         })
     };
@@ -124,14 +141,17 @@ pub fn backups() -> Html {
             spawn_local(async move {
                 match current_action {
                     ModalAction::ConfirmRestore(id, _) => {
-                        let args = serde_wasm_bindgen::to_value(&json!({ "id": id })).unwrap();
-                        invoke("restore_backup", args).await;
+                        let args = serde_wasm_bindgen::to_value(&json!({ "backupId": id })).unwrap();
+                        let _ = invoke("load_backup", args).await;
                         // 还原后可能不需要刷新列表，但为了保险起见可以刷新
                     },
                     ModalAction::ConfirmDelete(id, _) => {
-                        let args = serde_wasm_bindgen::to_value(&json!({ "id": id })).unwrap();
-                        invoke("delete_backup", args).await;
+                        let args = serde_wasm_bindgen::to_value(&json!({ "backupId": id })).unwrap();
+                        let _ = invoke("delete_backup", args).await;
                         fetch(); // 删除后必须刷新列表
+                    },
+                    ModalAction::ShowError(_) => {
+                        // 错误弹窗只需要关闭
                     },
                     ModalAction::None => {}
                 }
@@ -147,8 +167,7 @@ pub fn backups() -> Html {
 
     // --- 渲染 ---
     html! {
-        <div class="flex-col w-full h-full"> //新建备份区域
-
+        <div class="backup-container">
             <div class="backup-maker">
                 <input
                     ref={note_input_ref}
@@ -227,9 +246,10 @@ pub fn backups() -> Html {
                     <div class="modal-dialog" onclick={Callback::from(|e: MouseEvent| e.stop_propagation())}>
                         <div class="modal-header">
                             <h3 class="modal-title">
-                                {match *modal_state {
+                                {match &*modal_state {
                                     ModalAction::ConfirmRestore(_, _) => "确认还原存档？",
                                     ModalAction::ConfirmDelete(_, _) => "确认删除备份？",
+                                    ModalAction::ShowError(_) => "提示",
                                     _ => ""
                                 }}
                             </h3>
@@ -238,12 +258,24 @@ pub fn backups() -> Html {
                             {match &*modal_state {
                                 ModalAction::ConfirmRestore(_, name) => format!("确定要回退到 [{}] 吗？\n当前的游戏进度将会被覆盖且无法找回！", name),
                                 ModalAction::ConfirmDelete(_, name) => format!("确定要永久删除 [{}] 吗？此操作无法撤销。", name),
+                                ModalAction::ShowError(msg) => msg.clone(),
                                 _ => "".to_string()
                             }}
                         </div>
                         <div class="modal-footer">
-                            <button class="btn btn-secondary" onclick={on_modal_cancel}>{"取消"}</button>
-                            <button class="btn btn-primary" onclick={on_modal_confirm}>{"确定"}</button>
+                            {
+                                match &*modal_state {
+                                    ModalAction::ShowError(_) => html! {
+                                        <button class="btn btn-primary" onclick={on_modal_cancel}>{"确定"}</button>
+                                    },
+                                    _ => html! {
+                                        <>
+                                            <button class="btn btn-secondary" onclick={on_modal_cancel}>{"取消"}</button>
+                                            <button class="btn btn-primary" onclick={on_modal_confirm}>{"确定"}</button>
+                                        </>
+                                    }
+                                }
+                            }
                         </div>
                     </div>
                 </div>
