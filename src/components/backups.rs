@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 use serde_json::json;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
-// 引入你的 Path 组件
+use web_sys::console;
 use crate::components::Path;
 
 #[derive(Properties, PartialEq, Clone)]
@@ -51,6 +51,7 @@ pub fn backups() -> Html {
                 let response = invoke("get_all_backups", JsValue::NULL).await;
                 match serde_wasm_bindgen::from_value::<Vec<Backup>>(response) {
                     Ok(mut data) => {
+                        console::log_1(&"获取存档正常".into());
                         // 按时间倒序排序（最新的在最上面）
                         data.sort_by(|a, b| b.save_time.cmp(&a.save_time));
                         backups_list.set(data);
@@ -86,7 +87,7 @@ pub fn backups() -> Html {
             spawn_local(async move {
                 // 调用 Tauri: create_backup
                 let args = serde_wasm_bindgen::to_value(&json!({ "note": note })).unwrap();
-                invoke("create_backup", args).await;
+                invoke("save_backup", args).await;
 
                 // 清空输入框并刷新列表
                 input_clone.set_value("");

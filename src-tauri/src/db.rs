@@ -15,7 +15,6 @@ pub struct Backup {
     #[serde(with = "time::serde::rfc3339")]
     pub save_time: OffsetDateTime,
     pub more_info: Option<String>,
-    pub slot_id: Option<i8>,
 }
 
 impl FromRow<'_, sqlx::sqlite::SqliteRow> for Backup {
@@ -37,7 +36,6 @@ impl FromRow<'_, sqlx::sqlite::SqliteRow> for Backup {
             size: row.try_get("size")?,
             save_time,
             more_info: row.try_get("more_info")?,
-            slot_id: row.try_get("slot_id")?,
         })
     }
 }
@@ -50,7 +48,6 @@ CREATE TABLE IF NOT EXISTS backups (
     size INTEGER NOT NULL,
     save_time TEXT DEFAULT (datetime('now')),
     more_info TEXT,
-    slot_id INTEGER
 );
 ";
 
@@ -72,10 +69,10 @@ impl Db {
         let dsn = format!("sqlite://{}", abs.to_string_lossy().replace('\\', "/"));
 
         let mut conn = SqliteConnection::connect(&dsn).await?;
-        
+
         // 创建表
         sqlx::query(SCHEMA_SQL).execute(&mut conn).await?;
-        
+
         Ok(conn)
     }
 
@@ -86,26 +83,25 @@ impl Db {
             .unwrap();
 
         sqlx::query(
-            r#"INSERT INTO backups (name, digest, size, save_time, more_info, slot_id)
-               VALUES (?, ?, ?, ?, ?, ?)"#,
+            r#"INSERT INTO backups (name, digest, size, save_time, more_info)
+               VALUES (?, ?, ?, ?, ?)"#,
         )
-        .bind(&backup.name)
-        .bind(&backup.digest)
-        .bind(backup.size)
-        .bind(save_time_str)
-        .bind(&backup.more_info)
-        .bind(backup.slot_id)
-        .execute(conn)
-        .await?;
+            .bind(&backup.name)
+            .bind(&backup.digest)
+            .bind(backup.size)
+            .bind(save_time_str)
+            .bind(&backup.more_info)
+            .execute(conn)
+            .await?;
         Ok(())
     }
 
     pub async fn get_all_backup(conn: &mut SqliteConnection) -> anyhow::Result<Vec<Backup>> {
         let backups = sqlx::query_as::<_, Backup>(
-            r#"SELECT id, name, digest, size, save_time, more_info, slot_id FROM backups"#,
+            r#"SELECT id, name, digest, size, save_time, more_info FROM backups"#,
         )
-        .fetch_all(conn)
-        .await?;
+            .fetch_all(conn)
+            .await?;
 
         Ok(backups)
     }
@@ -115,11 +111,11 @@ impl Db {
         id: i32,
     ) -> anyhow::Result<Option<Backup>> {
         let backup = sqlx::query_as::<_, Backup>(
-            r#"SELECT id, name, digest, size, save_time, more_info, slot_id FROM backups WHERE id = ?"#,
+            r#"SELECT id, name, digest, size, save_time, more_info FROM backups WHERE id = ?"#,
         )
-        .bind(id)
-        .fetch_optional(conn)
-        .await?;
+            .bind(id)
+            .fetch_optional(conn)
+            .await?;
 
         Ok(backup)
     }
@@ -127,47 +123,6 @@ impl Db {
     pub async fn delete_backup(conn: &mut SqliteConnection, backup: &Backup) -> anyhow::Result<()> {
         sqlx::query("DELETE FROM backups WHERE id = ?")
             .bind(backup.id)
-            .execute(conn)
-            .await?;
-        Ok(())
-    }
-
-    /// 根据slot_id获取备份
-    pub async fn get_backup_by_slot_id(
-        conn: &mut SqliteConnection,
-        slot_id: i8,
-    ) -> anyhow::Result<Option<Backup>> {
-        let backup = sqlx::query_as::<_, Backup>(
-            r#"SELECT id, name, digest, size, save_time, more_info, slot_id FROM backups WHERE slot_id = ?"#,
-        )
-        .bind(slot_id)
-        .fetch_optional(conn)
-        .await?;
-
-        Ok(backup)
-    }
-
-    /// 更新备份的slot_id
-    pub async fn update_backup_slot_id(
-        conn: &mut SqliteConnection,
-        backup_id: i32,
-        slot_id: Option<i8>,
-    ) -> anyhow::Result<()> {
-        sqlx::query("UPDATE backups SET slot_id = ? WHERE id = ?")
-            .bind(slot_id)
-            .bind(backup_id)
-            .execute(conn)
-            .await?;
-        Ok(())
-    }
-
-    /// 清除指定slot_id的绑定（将该slot_id的所有备份的slot_id设为NULL）
-    pub async fn clear_slot_binding(
-        conn: &mut SqliteConnection,
-        slot_id: i8,
-    ) -> anyhow::Result<()> {
-        sqlx::query("UPDATE backups SET slot_id = NULL WHERE slot_id = ?")
-            .bind(slot_id)
             .execute(conn)
             .await?;
         Ok(())

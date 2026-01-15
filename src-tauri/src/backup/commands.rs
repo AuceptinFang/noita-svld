@@ -7,12 +7,11 @@ use crate::backup::fs_ops::*;
 use chrono::Local;
 use log::{debug, error, info};
 use time::OffsetDateTime;
-use tauri::command;
 use crate::units::path;
 
 /// 在数据库里留档
 #[tauri::command]
-pub async fn save_backup(slot_id : i8) -> Result<String, String> {
+pub async fn save_backup(description : Option<&str>) -> Result<String, String> {
     debug!("[save_back_up] {}", Local::now());
     // 先保存到本地
     let backup_name = match save_local().await{
@@ -41,7 +40,7 @@ pub async fn save_backup(slot_id : i8) -> Result<String, String> {
         }
     };
     let save_time = OffsetDateTime::now_utc();
-
+    let more_info = description.map(|s| s.to_string());
     // 创建Backup结构体
     let backup = Backup {
         id: 0, // 数据库自增，这里设为0
@@ -54,8 +53,7 @@ pub async fn save_backup(slot_id : i8) -> Result<String, String> {
         digest,
         size,
         save_time,
-        more_info: None,
-        slot_id: Some(slot_id), // 暂时设为None
+        more_info,
     };
 
     // 连接数据库并保存
@@ -187,4 +185,15 @@ pub async fn load_backup(backup_id: i32) -> Result<String, String> {
 
     debug!("{}", success_msg);
     Ok(success_msg)
+}
+#[cfg(test)]
+mod tests{
+    use super::*;
+    #[test]
+    fn test_description(){
+        let d1 : Option<&str> = Option::Some("d1");
+        let d2 : Option<&str> = Option::None;
+        assert!(d1.map(|s| s.to_string()).is_some());
+        assert!(d2.map(|s| s.to_string()).is_none());
+    }
 }
