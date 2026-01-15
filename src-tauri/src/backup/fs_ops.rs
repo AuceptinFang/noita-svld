@@ -1,231 +1,187 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
+use jwalk::WalkDir;
+use rayon::prelude::*;
 use sha2::{Digest, Sha256};
+use std::cmp::Ordering;
 use std::fs;
-use std::path::Path;
-use std::process::Command;
-use log::error;
+use std::path::{Path, PathBuf};
 
-#[derive(Debug)]
-struct DirectoryEntry {
-    path: String,
-    size: u64,
-    modified_secs: u64,
+// 定义一个中间结构体用于存储文件元数据，以便在内存中排序
+struct FileMeta {
+    rel_path: String,
+    len: u64,
+    modified: u64,
     is_dir: bool,
 }
 
-
 /// 计算目录指纹（基于文件元数据，不读取文件内容）
+/// 优化：使用 jwalk 并行扫描 + rayon 并行排序 + 纯内存计算 Hash
 pub fn calculate_hash(path: &Path) -> Result<String> {
     let mut hasher = Sha256::new();
+    let root = path;
 
     if path.is_file() {
-        // 对单个文件，使用元数据 + 文件名
+        // 单个文件
         let metadata = fs::metadata(path)?;
         let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
         hasher.update(file_name.as_bytes());
         hasher.update(&metadata.len().to_le_bytes());
 
-        // 添加修改时间（如果可用）
         if let Ok(modified) = metadata.modified() {
             if let Ok(duration) = modified.duration_since(std::time::UNIX_EPOCH) {
                 hasher.update(&duration.as_secs().to_le_bytes());
             }
         }
-    } else if path.is_dir() {
-        // 收集所有文件和子目录的元数据
-        let mut entries = Vec::new();
-        collect_directory_entries(path, &mut entries)?;
+    } else {
+        // 1. 并行扫描目录 (IO 密集型优化)
+        // jwalk 会利用多线程预取文件元数据
+        let mut entries: Vec<FileMeta> = WalkDir::new(path)
+            .skip_hidden(false) // 不跳过隐藏文件
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|entry| entry.ok()) // 忽略无法访问的文件
+            .filter_map(|entry| {
+                let path = entry.path();
+                let metadata = entry.metadata().ok()?;
 
-        // 按路径排序确保一致性
-        entries.sort_by(|a, b| a.path.cmp(&b.path));
+                // 计算相对路径，使用 '/' 作为分隔符
+                let rel_path = path
+                    .strip_prefix(root)
+                    .ok()?
+                    .to_string_lossy()
+                    .replace('\\', "/");
 
-        // 哈希所有条目的元数据
+                // 跳过根目录
+                if rel_path.is_empty() {
+                    return None;
+                }
+
+                let modified = metadata.modified()
+                    .ok()
+                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+
+                Some(FileMeta {
+                    rel_path,
+                    len: metadata.len(),
+                    modified,
+                    is_dir: metadata.is_dir(),
+                })
+            })
+            .collect();
+
+        // 2. 并行排序，否则多线程扫描的随机顺序会导致 Hash 每次都不一样
+        entries.par_sort_unstable_by(|a, b| a.rel_path.cmp(&b.rel_path));
+
+        // 3. 顺序计算 Hash
         for entry in entries {
-            hasher.update(entry.path.as_bytes());
-            hasher.update(&entry.size.to_le_bytes());
-            hasher.update(&entry.modified_secs.to_le_bytes());
+            hasher.update(entry.rel_path.as_bytes());
+            hasher.update(&entry.len.to_le_bytes());
+            hasher.update(&entry.modified.to_le_bytes());
+            // is_dir 转 u8
             hasher.update(&[entry.is_dir as u8]);
         }
     }
 
     let result = hasher.finalize();
-    Ok(result
-        .iter()
-        .map(|b| format!("{:02x}", b))
-        .collect::<String>())
+    Ok(hex::encode(result))
 }
 
-
-/// 递归收集目录中所有文件和子目录的元数据
-pub fn collect_directory_entries(dir: &Path, entries: &mut Vec<DirectoryEntry>) -> Result<()> {
-    let read_dir = fs::read_dir(dir)?;
-
-    for entry in read_dir {
-        let entry = entry?;
-        let path = entry.path();
-        let metadata = entry.metadata()?;
-
-        let relative_path = path
-            .strip_prefix(dir)
-            .unwrap_or(&path)
-            .to_string_lossy()
-            .to_string();
-
-        let modified_secs = metadata
-            .modified()
-            .ok()
-            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
-
-        entries.push(DirectoryEntry {
-            path: relative_path,
-            size: metadata.len(),
-            modified_secs,
-            is_dir: metadata.is_dir(),
-        });
-
-        // 递归处理子目录
-        if metadata.is_dir() {
-            collect_directory_entries(&path, entries)?;
-        }
-    }
-
-    Ok(())
-}
-
-/// 使用系统调用计算目录大小（字节）
+/// 计算目录大小（字节）
+/// 使用 jwalk 并行遍历
 pub fn calculate_directory_size(path: &Path) -> Result<i64> {
-    #[cfg(target_os = "windows")]
-    {
-        // 使用PowerShell获取目录大小
-        let output = Command::new("powershell")
-            .args([
-                "-Command",
-                &format!(
-                    "(Get-ChildItem -Path '{}' -Recurse -Force | Measure-Object -Property Length -Sum).Sum",
-                    path.display()
-                )
-            ])
-            .output()?;
-
-        if output.status.success() {
-            let size_str = String::from_utf8_lossy(&output.stdout).to_string();
-            if let Ok(size) = size_str.parse::<i64>() {
-                return Ok(size);
-            }
-        }
-    }
-
-    // 回退到原生方法
-    let mut total_size = 0i64;
-
     if path.is_file() {
         return Ok(fs::metadata(path)?.len() as i64);
     }
 
-    for entry in fs::read_dir(path)? {
-        let entry = entry?;
-        let path = entry.path();
+    // jwalk::WalkDir 默认启用并行（parallelism 自动设置为 CPU 核心数）
+    let total_size: u64 = WalkDir::new(path)
+        .skip_hidden(false)
+        .into_iter()
+        .filter_map(|entry| entry.ok()) // 忽略无权限错误
+        .filter_map(|entry| entry.metadata().ok())
+        .filter(|m| m.is_file()) // 只累加文件大小，忽略目录本身的大小占用
+        .map(|m| m.len())
+        .sum();
 
-        if path.is_dir() {
-            total_size += calculate_directory_size(&path)?;
-        } else {
-            total_size += fs::metadata(&path)?.len() as i64;
-        }
-    }
-
-    Ok(total_size)
+    // 强转为 i64 以匹配原始签名
+    Ok(total_size as i64)
 }
 
-/// 使用系统调用复制目录到目标位置
-pub fn copy_directory_system(src: &Path, dst: &Path) -> Result<()> {
-    // 确保目标目录的父目录存在
-    if let Some(parent) = dst.parent() {
-        if !parent.exists() {
-            fs::create_dir_all(parent)?;
-        }
+/// 复制目录到目标位置
+/// jwalk 负责发现文件，rayon 负责并行复制。
+pub fn copy_directory(src: &Path, dst: &Path) -> Result<()> {
+    if !dst.exists() {
+        fs::create_dir_all(dst).with_context(|| format!("无法创建目标根目录: {:?}", dst))?;
     }
 
-    #[cfg(target_os = "windows")]
-    {
-        // 使用robocopy进行高性能复制
-        let output = Command::new("robocopy")
-            .args([
-                src.to_str().unwrap(),
-                dst.to_str().unwrap(),
-                "/E",    // 复制子目录，包括空目录
-                "/MT:8", // 多线程复制，使用8个线程
-                "/R:3",  // 重试次数
-                "/W:1",  // 重试等待时间（秒）
-                "/NFL",  // 不记录文件名
-                "/NDL",  // 不记录目录名
-                "/NP",   // 不显示进度
-            ])
-            .output()?;
+    // 1. 阶段一：扫描 (Scanning)
+    // 快速收集所有源文件路径，计算出目标路径。
+    // 使用 Vec 收集是为了避免在复制文件的同时持有目录迭代器的锁，
+    // 同时也为了先创建所有目录，再并行复制文件。
+    let entries: Vec<(PathBuf, PathBuf, bool)> = WalkDir::new(src)
+        .skip_hidden(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter_map(|entry| {
+            let src_path = entry.path();
+            // 跳过根目录本身
+            if src_path == src {
+                return None;
+            }
 
-        // robocopy的退出码0-7都表示成功
-        let exit_code = output.status.code().unwrap_or(-1);
-        if exit_code >= 0 && exit_code <= 7 {
-            return Ok(());
-        } else {
-            // 如果robocopy失败，尝试使用xcopy
-            let output = Command::new("xcopy")
-                .args([
-                    src.to_str().unwrap(),
-                    dst.to_str().unwrap(),
-                    "/E", // 复制目录和子目录，包括空目录
-                    "/I", // 如果目标不存在且复制多个文件，假定目标是目录
-                    "/H", // 复制隐藏文件和系统文件
-                    "/Y", // 覆盖现有文件而不提示
-                ])
-                .output()?;
+            let relative = src_path.strip_prefix(src).ok()?;
+            let dst_path = dst.join(relative);
+            let is_dir = entry.file_type().is_dir();
 
-            if !output.status.success() {
-                return Err(anyhow::anyhow!(
-                    "系统复制命令失败: {}",
-                    String::from_utf8_lossy(&output.stderr)
-                ));
+            Some((src_path.to_path_buf(), dst_path, is_dir))
+        })
+        .collect();
+
+    // 2. 阶段二：创建目录结构 (Structure Creation)
+    for (_, dst_path, is_dir) in entries.iter() {
+        if *is_dir {
+            if let Err(e) = fs::create_dir_all(dst_path) {
+                // 忽略 "目录已存在" 的错误
+                if e.kind() != std::io::ErrorKind::AlreadyExists {
+                    return Err(anyhow::anyhow!("创建目录失败 {:?}: {}", dst_path, e));
+                }
             }
         }
     }
 
-    Ok(())
-}
+    // 3. 阶段三：并行复制文件 (Parallel Copying)
+    // Rayon 会自动利用线程池进行复制。对于 SSD，这能极大提高吞吐量。
+    // 遇到任何一个错误直接返回（Fail Fast），或者你可以改为收集错误。
+    let errors: Vec<(PathBuf, std::io::Error)> = entries.into_par_iter()
+        .filter(|(_, _, is_dir)| !*is_dir)
+        .filter_map(|(src_path, dst_path, _)| -> Option<(PathBuf, std::io::Error)> {
+            // 尝试复制，如果成功返回 None，如果失败返回 Some(错误信息)
+            match fs::copy(&src_path, &dst_path) {
+                Ok(_) => None,
+                Err(e) => Some((src_path, e)),
+            }
+        })
+        .collect(); // 这里会等待所有线程跑完，并把所有错误收集到一个 Vec 中
 
-/// 回退的原生复制方法
-pub fn copy_directory_native(src: &Path, dst: &Path) -> Result<()> {
-    // 确保目录存在
-    if !dst.exists() {
-        fs::create_dir_all(dst)?;
-    }
-
-    // 遍历目录
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let src_path = entry.path();
-        let dst_path = dst.join(entry.file_name());
-
-        if src_path.is_dir() {
-            copy_directory_native(&src_path, &dst_path)?;
-        } else {
-            fs::copy(&src_path, &dst_path)?;
+    // 4. 阶段四：错误汇报
+    // 如果有错误，我们需要决定是打印日志还是返回 Err
+    if !errors.is_empty() {
+        // 打印前 5 个错误示例 (避免日志刷屏)
+        for (path, err) in errors.iter().take(5) {
+            eprintln!("警告: 复制失败 {:?} -> {}", path, err);
         }
+
+        // 如果你希望“只要有文件失败就算整个任务失败”，则返回 Err
+        return Err(anyhow::anyhow!(
+            "备份完成，但有 {} 个文件复制失败 (详情请查看日志)",
+            errors.len()
+        ));
+
+        // 如果你希望“容忍部分失败”，这里可以直接 return Ok(());
     }
 
     Ok(())
-}
-
-/// 优先使用系统调用，失败时回退到原生方法
-pub fn copy_directory(src: &Path, dst: &Path) -> Result<()> {
-    // 首先尝试系统调用
-    match copy_directory_system(src, dst) {
-        Ok(()) => Ok(()),
-        Err(_) => {
-            // 系统调用失败时回退到原生方法
-            error!("系统调用复制失败，回退到原生方法");
-            copy_directory_native(src, dst)
-        }
-    }
 }

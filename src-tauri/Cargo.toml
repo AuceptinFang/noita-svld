@@ -36,5 +36,10 @@ sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "macros"
 tokio = { version = "1", features = ["full"] }
 time = { version = "0.3", features = ["serde", "macros"] }
 
+# 并行目录遍历
+jwalk = "0.8.1"
+sha2 = "0.11.0-rc.3"
+#并行计算
+rayon = "1.11.0"
+hex = "0.4"
 
-sha2 = "0.10"

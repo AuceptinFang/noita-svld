@@ -4,15 +4,15 @@ use walkdir::WalkDir;
 use std::process::Command;
 use log::debug;
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct DashboardStats {
     backup_count: usize,
-    total_size: u64,    // 字节单位
+    total_size: u64,    // 单位字节
     is_ready: bool,     // 后端健康
 }
 
 #[tauri::command]
-pub fn get_dashboard_stats() -> Result<DashboardStats, String> {
+pub async fn get_dashboard_stats() -> Result<DashboardStats, String> {
     let mut total_size : u64 = 0;
     let is_ready : bool = true;
 
@@ -22,7 +22,7 @@ pub fn get_dashboard_stats() -> Result<DashboardStats, String> {
         .map_err(|e| e.to_string())?
         .count();
 
-    // 递归计算总大小 
+    // 递归计算总大小
     total_size = WalkDir::new(&backup_root)
         .into_iter()
         .filter_map(|entry| entry.ok())
@@ -39,4 +39,13 @@ pub fn get_dashboard_stats() -> Result<DashboardStats, String> {
             is_ready,
         }
     )
+}
+
+#[cfg(test)]
+mod tests{
+    use super::*;
+    #[tokio::test]
+    async fn test_dashboard(){
+        println!("{:?}", get_dashboard_stats().await.unwrap());
+    }
 }
