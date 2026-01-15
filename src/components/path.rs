@@ -11,8 +11,8 @@ pub struct PathProps {
 
 #[wasm_bindgen]
 extern "C" {
-    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"])]
-    async fn invoke(cmd: &str, args: JsValue) -> JsValue;
+    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"], catch)]
+    async fn invoke(cmd: &str, args: JsValue) -> Result<JsValue, JsValue>;
 }
 
 #[derive(Serialize, Deserialize)]
@@ -34,17 +34,30 @@ pub fn path() -> Html {
         use_effect_with((), move |_| {
             spawn_local(async move {
                 let response = invoke("get_save_path", JsValue::NULL).await;
-                match response.as_string() {
-                    Some(path) => {
-                        current_path.set(path);
-                        let v = invoke("verify_validation", JsValue::NULL).await;
-                        console::log_1(&format!("收到结果：{:?}", v).into());
-                        let valid = v.as_string().is_some();
-                        console::log_1(&format!("验证结果：{}", valid).into());
-                        is_valid.set(valid);
+                match response {
+                    Ok(value) => {
+                        if let Some(path) = value.as_string() {
+                            current_path.set(path);
+                            
+                            // Try to verify the path
+                            match invoke("verify_validation", JsValue::NULL).await {
+                                Ok(_) => {
+                                    console::log_1(&"验证成功".into());
+                                    is_valid.set(true);
+                                }
+                                Err(e) => {
+                                    console::log_1(&format!("验证失败：{:?}", e).into());
+                                    is_valid.set(false);
+                                }
+                            }
+                        } else {
+                            current_path.set("未设置路径".to_string());
+                            is_valid.set(false);
+                        }
                     }
-                    None => {
+                    Err(_) => {
                         current_path.set("未设置路径".to_string());
+                        is_valid.set(false);
                     }
                 }
             });
@@ -63,23 +76,30 @@ pub fn path() -> Html {
             spawn_local(async move {
                 // 调用 Tauri 的选择文件夹弹窗
                 let response = invoke("select_save_path", JsValue::NULL).await;
-                match response.as_string() {
-                    Some(path) => {
-                        // 1. 更新 UI 显示
-                        current_path.set(path.clone());
+                match response {
+                    Ok(value) => {
+                        if let Some(path) = value.as_string() {
+                            // 1. 更新 UI 显示
+                            current_path.set(path.clone());
 
-                        // 2. 保存到后端环境
-                        let args = serde_wasm_bindgen::to_value(&SavePathArgs { path: path.clone() }).unwrap();
-                        invoke("save_path_to_env", args).await;
+                            // 2. 保存到后端环境
+                            let args = serde_wasm_bindgen::to_value(&SavePathArgs { path: path.clone() }).unwrap();
+                            let _ = invoke("save_path_to_env", args).await;
 
-                        // 3. 再次验证有效性
-                        let v = invoke("verify_validation", JsValue::NULL).await;
-                        let valid = v.as_string().is_some();
-                        console::log_1(&format!("验证结果：{}", valid).into());
-
-                        is_valid.set(valid);
+                            // 3. 再次验证有效性
+                            match invoke("verify_validation", JsValue::NULL).await {
+                                Ok(_) => {
+                                    console::log_1(&"验证成功".into());
+                                    is_valid.set(true);
+                                }
+                                Err(e) => {
+                                    console::log_1(&format!("验证失败：{:?}", e).into());
+                                    is_valid.set(false);
+                                }
+                            }
+                        }
                     }
-                    None => return, // 用户取消了选择
+                    Err(_) => return, // 用户取消了选择
                 }
             })
         })

@@ -5,10 +5,8 @@ use std::{env, fs};
 use chrono::Local;
 use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;
-use log::{info, debug, error, warn, trace};
-use dotenvy::dotenv;
+use log::{info, debug, error};
 use serde::{Deserialize, Serialize};
-use std::sync::Mutex; // 如果涉及到多线程读写，可以用这个，这里简单起见先不用
 
 
 // 定义配置结构体，自动支持序列化
@@ -172,14 +170,7 @@ pub async fn verify_validation() -> Result<(), String> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::units::path::{get_save_path, save_path_to_env, verify_validation};
-    /*#[test]
-    fn test_get_path() {
-        save_path_to_env("./src");
-        let result = get_save_path();
-        assert_eq!(result.unwrap(), "./src");
-    }*/
+    use crate::units::path::verify_validation;
 
     #[tokio::test]
     async fn test_path() {
