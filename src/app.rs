@@ -4,7 +4,7 @@ use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
 use crate::components::*;
-use crate::pages::{index::Index, backup::Backup,setting::Setting,info::Info};
+use crate::pages::{index::Index, backup::Backup_page,setting::Setting,info::Info};
 use crate::router::Route;
 use crate::components::SideBar;
 
@@ -20,7 +20,7 @@ fn switch(routes: Route) -> Html {
         // 它执行下面的代码，把 <Index /> 组件画出来
         Route::Index => html! { <Index /> },
 
-        Route::Backup => html! { <Backup /> },
+        Route::Backup => html! { <Backup_page /> },
 
         Route::Info => html! { <Info/> },
 

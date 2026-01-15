@@ -147,10 +147,10 @@ pub fn backups() -> Html {
     html! {
         <div class="flex-col w-full h-full"> //新建备份区域
 
-            <div class="backups-maker">
+            <div class="backup-maker">
                 <input
                     ref={note_input_ref}
-                    class="backups-note-input"
+                    class="backup-note-input"
                     type="text"
                     placeholder="添加备注"
                 />
@@ -161,10 +161,15 @@ pub fn backups() -> Html {
 
 
             // B. 备份列表区域
-            <div class="backups-list-container mt-4">
+            <div class="backup-list-container mt-4">
                 if backups_list.is_empty() {
-                    <div class="text-center text-slate-500 py-10">
-                        {"暂无备份记录"}
+                     <div class="backup-card">
+                        // 左侧信息
+                        <div class="card-info">
+                            <h4>{ "暂无备份记录" }</h4>
+                            <div class="card-meta">
+                            </div>
+                        </div>
                     </div>
                 } else {
                     { for backups_list.iter().map(|backup| {
@@ -182,7 +187,7 @@ pub fn backups() -> Html {
                         let on_delete = trigger_delete.clone();
 
                         html! {
-                            <div class="backups-card">
+                            <div class="backup-card">
                                 // 左侧信息
                                 <div class="card-info">
                                     <h4>{ &name }</h4>
