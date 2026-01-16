@@ -1,7 +1,6 @@
 # Rust
 /dist/
 /target/
-/Cargo.lock
 
 # Environment files
 .env
