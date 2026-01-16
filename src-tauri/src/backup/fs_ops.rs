@@ -2,9 +2,9 @@ use anyhow::{Context, Result};
 use jwalk::WalkDir;
 use rayon::prelude::*;
 use sha2::{Digest, Sha256};
-use std::cmp::Ordering;
 use std::fs;
 use std::path::{Path, PathBuf};
+use log::error;
 
 // 定义一个中间结构体用于存储文件元数据，以便在内存中排序
 struct FileMeta {
@@ -117,14 +117,18 @@ pub fn copy_directory(src: &Path, dst: &Path) -> Result<()> {
         fs::create_dir_all(dst).with_context(|| format!("无法创建目标根目录: {:?}", dst))?;
     }
 
-    // 1. 阶段一：扫描 (Scanning)
-    // 快速收集所有源文件路径，计算出目标路径。
-    // 使用 Vec 收集是为了避免在复制文件的同时持有目录迭代器的锁，
-    // 同时也为了先创建所有目录，再并行复制文件。
+    // 扫描 (Scanning)
+    let mut scan_errors = Vec::new();
     let entries: Vec<(PathBuf, PathBuf, bool)> = WalkDir::new(src)
         .skip_hidden(false)
         .into_iter()
-        .filter_map(|e| e.ok())
+        .filter_map(|e| match e {
+            Ok(entry) => Some(entry),
+            Err(err) => {
+                scan_errors.push(format!("扫描失败: {}", err));
+                None
+            }
+        })
         .filter_map(|entry| {
             let src_path = entry.path();
             // 跳过根目录本身
@@ -140,7 +144,18 @@ pub fn copy_directory(src: &Path, dst: &Path) -> Result<()> {
         })
         .collect();
 
-    // 2. 阶段二：创建目录结构 (Structure Creation)
+    // 如果扫描阶段有错误，记录日志但继续
+    if !scan_errors.is_empty() {
+        for err in scan_errors.iter().take(10) {
+            error!("{}", err);
+        }
+        if scan_errors.len() > 10 {
+            error!("... 还有 {} 个扫描错误", scan_errors.len() - 10);
+        }
+        error!("扫描阶段共 {} 个错误", scan_errors.len());
+    }
+
+    // 创建目录结构 (Structure Creation)
     for (_, dst_path, is_dir) in entries.iter() {
         if *is_dir {
             if let Err(e) = fs::create_dir_all(dst_path) {
@@ -152,9 +167,7 @@ pub fn copy_directory(src: &Path, dst: &Path) -> Result<()> {
         }
     }
 
-    // 3. 阶段三：并行复制文件 (Parallel Copying)
-    // Rayon 会自动利用线程池进行复制。对于 SSD，这能极大提高吞吐量。
-    // 遇到任何一个错误直接返回（Fail Fast），或者你可以改为收集错误。
+    // 并行复制文件 (Parallel Copying)
     let errors: Vec<(PathBuf, std::io::Error)> = entries.into_par_iter()
         .filter(|(_, _, is_dir)| !*is_dir)
         .filter_map(|(src_path, dst_path, _)| -> Option<(PathBuf, std::io::Error)> {
@@ -166,21 +179,22 @@ pub fn copy_directory(src: &Path, dst: &Path) -> Result<()> {
         })
         .collect(); // 这里会等待所有线程跑完，并把所有错误收集到一个 Vec 中
 
-    // 4. 阶段四：错误汇报
-    // 如果有错误，我们需要决定是打印日志还是返回 Err
+    // 错误处理
     if !errors.is_empty() {
-        // 打印前 5 个错误示例 (避免日志刷屏)
-        for (path, err) in errors.iter().take(5) {
-            eprintln!("警告: 复制失败 {:?} -> {}", path, err);
+        // 打印前 10 个错误示例
+        for (path, err) in errors.iter().take(10) {
+            error!("复制失败 {:?} -> {}", path, err);
         }
 
-        // 如果你希望“只要有文件失败就算整个任务失败”，则返回 Err
+        if errors.len() > 10 {
+            error!("... 还有 {} 个文件复制失败", errors.len() - 10);
+        }
+
+        // 返回错误，包含失败文件数量
         return Err(anyhow::anyhow!(
             "备份完成，但有 {} 个文件复制失败 (详情请查看日志)",
             errors.len()
         ));
-
-        // 如果你希望“容忍部分失败”，这里可以直接 return Ok(());
     }
 
     Ok(())

@@ -2,7 +2,7 @@ use super::fs_ops;
 use crate::units::path;
 use anyhow::{anyhow, Result};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use log::info;
 use crate::backup::fs_ops::*;
 
@@ -21,9 +21,9 @@ pub async fn save_local() -> Result<String, String> {
     let digest_prefix = &digest[..12]; // 使用前12位作为文件名
 
     // 创建备份目录
-    let backup_root = Path::new("./backups");
+    let backup_root = PathBuf::from(path::get_data_path()?);
     if !backup_root.exists() {
-        fs::create_dir_all(backup_root).map_err(|e| e.to_string())?;
+        fs::create_dir_all(&backup_root).map_err(|e| e.to_string())?;
     }
 
     let backup_name = format!("backup_{}", digest_prefix);

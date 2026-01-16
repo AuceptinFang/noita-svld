@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 struct AppConfig {
     // 使用 Option，如果是 None 代表用户还没设置
     save_path: Option<String>,
+    data_path: Option<String>,
 }
 
 pub struct ConfigManager;
@@ -51,8 +52,6 @@ impl ConfigManager {
     }
 }
 
-// --- Tauri Commands 改造 ---
-
 #[tauri::command]
 pub fn save_path_to_env(path: &str) -> Result<(), String> {
     debug!("[save_config] 保存路径: {}", path);
@@ -69,7 +68,19 @@ pub fn save_path_to_env(path: &str) -> Result<(), String> {
     info!("配置已更新");
     Ok(())
 }
+#[tauri::command]
+pub fn save_data_path(path : &str) -> Result<(), String> {
+    debug!("[save_config] 保存路径: {}", path);
+    
+    let mut config = ConfigManager::load();
+    
+    config.data_path = Some(path.to_string());
+    
+    ConfigManager::save(&config)?;
 
+    info!("配置已更新");
+    Ok(())
+}
 #[tauri::command]
 pub fn get_save_path() -> Result<String, String> {
     let config = ConfigManager::load();
@@ -82,7 +93,6 @@ pub fn get_save_path() -> Result<String, String> {
 
     // 如果没有，生成默认路径
     let default_path = if let Some(home) = dirs::home_dir() {
-        // 手动拼接比较稳妥
         home.join("AppData").join("LocalLow").join("Nolla_Games_Noita").join("save00")
     } else {
         return Err("无法获取系统用户目录".to_string());
@@ -94,6 +104,35 @@ pub fn get_save_path() -> Result<String, String> {
     save_path_to_env(&path_str)?;
 
     info!("[get_save_path] 使用默认路径: {}", path_str);
+    Ok(path_str)
+}
+
+#[tauri::command]
+pub fn get_data_path() -> Result<String, String> {
+    let config = ConfigManager::load();
+
+    if let Some(path) = config.data_path {
+        debug!("[get_data_path] 从配置加载: {}", path);
+        return Ok(path);
+    }
+
+    let default_path = if let Some(home) = dirs::home_dir() {
+        home.join("Documents").join("Noita-svld")
+    }else {
+        return Err("无法获取系统用户目录".to_string());
+    };
+
+    if !default_path.exists() {
+        std::fs::create_dir_all(&default_path)
+            .map_err(|e| format!("无法创建文件夹: {}", e))?;
+    }
+
+    let path_str = default_path.to_string_lossy().to_string();
+
+    // 保存默认值到配置文件
+    save_data_path(&path_str)?;
+
+    info!("[get_data_path] 使用默认路径: {}", path_str);
     Ok(path_str)
 }
 
@@ -113,6 +152,21 @@ pub async fn select_save_path(app: AppHandle) -> Option<String> {
     }
 }
 
+#[tauri::command]
+pub async fn select_data_path(app: AppHandle) -> Option<String> {
+    debug!("[select_data_path] {}", Local::now());
+    // 使用同步方式获取文件夹路径
+    if let Some(path) = app
+        .dialog()
+        .file()
+        .set_title("选择保存目录")
+        .blocking_pick_folder()
+    {
+        Some(path.to_string())
+    } else {
+        None
+    }
+}
 
 #[tauri::command]
 pub async fn verify_validation() -> Result<(), String> {
@@ -168,6 +222,10 @@ pub async fn verify_validation() -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+pub async fn verify_data_validation() -> Result<(), String> {
+    Ok(())
+}
 #[cfg(test)]
 mod tests {
     use crate::units::path::verify_validation;

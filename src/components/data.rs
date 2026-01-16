@@ -1,0 +1,113 @@
+use serde::{Deserialize, Serialize};
+use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::spawn_local;
+use yew::prelude::*;
+use web_sys::console;
+
+#[derive(Properties, PartialEq)]
+pub struct PathProps {
+    pub on_valid_change: Callback<bool>,
+}
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = ["window", "__TAURI__", "core"], catch)]
+    async fn invoke(cmd: &str, args: JsValue) -> Result<JsValue, JsValue>;
+}
+
+#[derive(Serialize, Deserialize)]
+struct SavePathArgs {
+    path: String,
+}
+
+#[function_component(Data)]
+pub fn path() -> Html {
+    // 默认显示的提示文本
+    let current_path = use_state(|| "正在检测备份路径...".to_string());
+    let is_valid = use_state(|| false);
+
+    // 初始化检测逻辑
+    {
+        let current_path = current_path.clone();
+        let is_valid = is_valid.clone();
+
+        use_effect_with((), move |_| {
+            is_valid.set(true);
+            || {}
+        });
+    }
+
+    // 浏览文件夹
+    let on_select_folder = {
+        let current_path = current_path.clone();
+        let is_valid = is_valid.clone();
+
+        Callback::from(move |_: MouseEvent| {
+            let current_path = current_path.clone();
+            let is_valid = is_valid.clone();
+            spawn_local(async move {
+                // 调用 Tauri 的选择文件夹弹窗
+                let response = invoke("select_save_path", JsValue::NULL).await;
+                match response {
+                    Ok(value) => {
+                        if let Some(path) = value.as_string() {
+                            // 更新 UI 显示
+                            current_path.set(path.clone());
+
+                            // 保存到后端环境
+                            let args = serde_wasm_bindgen::to_value(&SavePathArgs { path: path.clone() }).unwrap();
+                            let _ = invoke("save_data_path", args).await;
+
+                            // 验证有效性
+                            match invoke("verify_data_validation", JsValue::NULL).await {
+                                Ok(_) => {
+                                    console::log_1(&"验证成功".into());
+                                    is_valid.set(true);
+                                }
+                                Err(e) => {
+                                    console::log_1(&format!("验证失败：{:?}", e).into());
+                                    is_valid.set(false);
+                                }
+                            }
+                        }
+                    }
+                    Err(_) => return, // 用户取消了选择
+                }
+            })
+        })
+    };
+
+    // --- 3. 渲染部分 ---
+    html! {
+         <div class="path-card">
+            // 标题行：左边是标签，右边是状态
+            <div class="path-header">
+                <span class="path-label">{"备份将保存到"}</span>
+                {
+                    if *is_valid {
+                        html! { <span class="badge badge-success">{"● 此路径可写"}</span> }
+                    } else {
+                        html! { <span class="badge badge-error">{"● 路径不可用"}</span> }
+                    }
+                }
+            </div>
+
+            // 内容行：路径显示 + 修改按钮
+            <div class="path-body">
+                <div class={if *is_valid { "path-value" } else { "path-value path-error" }}>
+                    { &*current_path }
+                </div>
+                <button onclick={on_select_folder} class="btn btn-secondary btn-browse">
+                    {"📁 更改..."}
+                </button>
+            </div>
+
+            // 错误提示行：仅在无效时显示
+            if !*is_valid {
+                <div class="path-help-text">
+                    {"此路径权限不足，请更换"}
+                </div>
+            }
+         </div>
+    }
+}
