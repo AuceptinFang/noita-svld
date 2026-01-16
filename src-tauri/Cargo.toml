@@ -34,6 +34,7 @@ walkdir = "2.2.3"
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "sqlite", "macros", "time"], default-features = false }
 tokio = { version = "1", features = ["full"] }
 time = { version = "0.3", features = ["serde", "macros"] }
+urlencoding = "2.1"
 
 # 并行目录遍历
 jwalk = "0.8.1"

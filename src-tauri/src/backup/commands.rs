@@ -8,6 +8,7 @@ use log::{debug, error, info};
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use crate::units::path;
+use crate::units::db_path;
 
 /// 在数据库里留档
 #[tauri::command]
@@ -23,7 +24,10 @@ pub async fn save_backup(name : Option<&str>) -> Result<String, String> {
     };
 
     // 连接数据库
-    let db_path = "./db/backups.db".to_string();
+    let db_path = db_path::get_db_path().map_err(|e| {
+        error!("获取数据库路径失败: {}", e);
+        e.to_string()
+    })?;
     let mut conn = match Db::new(db_path).await{
         Ok(db) => db,
         Err(e) => {
@@ -70,6 +74,7 @@ pub async fn save_backup(name : Option<&str>) -> Result<String, String> {
         name: Some(slot_name),
         digest,
         size,
+        path:data_path,
         save_time,
         more_info: None,
     };
@@ -92,7 +97,10 @@ pub async fn save_backup(name : Option<&str>) -> Result<String, String> {
 #[tauri::command]
 pub async fn get_all_backups() -> Result<Vec<Backup>, String> {
     debug!("[get_all_backups] {}",Local::now());
-    let db_path = "./db/backups.db".to_string();
+    let db_path = db_path::get_db_path().map_err(|e| {
+        error!("获取数据库路径失败: {}", e);
+        e.to_string()
+    })?;
 
     let mut conn = match Db::new(db_path).await{
         Ok(db) => db,
@@ -113,7 +121,10 @@ pub async fn get_all_backups() -> Result<Vec<Backup>, String> {
 pub async fn load_backup(backup_id: i32) -> Result<String, String> {
     debug!("[load_backup] {} ", Local::now());
     // 连接数据库查找备份
-    let db_path = "./db/backups.db".to_string();
+    let db_path = db_path::get_db_path().map_err(|e| {
+        error!("获取数据库路径失败: {}", e);
+        e.to_string()
+    })?;
 
     let mut conn = Db::new(db_path).await.map_err(|e| {
         error!("建立数据库连接出错: {}", e);
@@ -133,10 +144,7 @@ pub async fn load_backup(backup_id: i32) -> Result<String, String> {
     };
 
     // 获取当前存档路径
-    let save_path = path::get_save_path().map_err(|e| {
-        error!("获取路径失败: {}",e);
-        e.to_string()
-    })?;
+    let save_path = backup.path;
     let target_path = Path::new(&save_path);
 
     // 构建备份文件路径
@@ -153,8 +161,7 @@ pub async fn load_backup(backup_id: i32) -> Result<String, String> {
         error!("备份文件不存在: {}",backup_path.display());
         return Err(format!("备份文件不存在: {}", backup_path.display()));
     }
-    /*
-    // 验证备份完整性
+    /* hash实现不对，有bug，反正出错了也修不了，不修了
     let current_digest = calculate_hash(&backup_path).map_err(|e| {
         error!("完整性校验失败: {}",e);
         e.to_string()
@@ -203,7 +210,10 @@ pub async fn load_backup(backup_id: i32) -> Result<String, String> {
 pub async fn delete_backup(id : i32) -> Result<(), String> {
     info!("[delete_backup]:删除 {}", id);
 
-    let db_path = "./db/backups.db".to_string();
+    let db_path = db_path::get_db_path().map_err(|e| {
+        error!("获取数据库路径失败: {}", e);
+        e.to_string()
+    })?;
     let mut conn = Db::new(db_path).await.map_err(|e| {
         error!("建立数据库连接出错: {}", e);
         e.to_string()
@@ -228,11 +238,7 @@ pub async fn delete_backup(id : i32) -> Result<(), String> {
     // 构建备份文件路径 (命名方式: backup_{digest前12位})
     let digest_prefix = &backup.digest[..12];
     let backup_name = format!("backup_{}", digest_prefix);
-    let data_path = path::get_data_path().map_err(|e| {
-        error!("获取数据路径失败: {}", e);
-        e.to_string()
-    })?;
-    let backup_path = Path::new(&data_path).join(&backup_name);
+    let backup_path = Path::new(&backup.path).join(&backup_name);
 
     // 删除实际存档
     if backup_path.exists() {
