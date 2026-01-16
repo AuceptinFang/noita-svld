@@ -144,10 +144,7 @@ pub async fn load_backup(backup_id: i32) -> Result<String, String> {
     };
 
     // 获取游戏存档路径（目标路径）
-    let save_path = path::get_save_path().map_err(|e| {
-        error!("获取游戏存档路径失败: {}", e);
-        e.to_string()
-    })?;
+    let save_path = backup.path;
     let target_path = Path::new(&save_path);
 
     // 构建备份文件路径

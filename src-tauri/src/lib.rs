@@ -16,7 +16,7 @@ pub fn run() -> Result<()> {
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview),
                     tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::LogDir {
-                        file_name: Some("app.log".to_string())   // C:\Users\username\AppData\Roaming\myapp\logs\app.log
+                        file_name: Some("app.log".to_string())
                     }),
                 ])
                 .level(log::LevelFilter::Debug)
