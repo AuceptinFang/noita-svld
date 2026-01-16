@@ -133,10 +133,11 @@
 .modal-dialog {
     background: #1e293b;
     border: 1px solid #475569;
-    padding: 2rem;
+    padding: 1rem;
     border-radius: 12px;
     color: #e2e8f0;
     min-width: 400px;
+    max-height: 45vh;
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
 }
 .modal-title { margin-top: 0; color: white; }

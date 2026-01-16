@@ -41,6 +41,7 @@ pub fn backups() -> Html {
     let backups_list = use_state(|| Vec::<Backup>::new());
     let note_input_ref = use_node_ref();
     let modal_state = use_state(|| ModalAction::None);
+    let finished = use_state(|| true);
 
     // 获取备份列表
     let fetch_backups = {
@@ -80,7 +81,7 @@ pub fn backups() -> Html {
         let note_input_ref = note_input_ref.clone();
         let fetch = fetch_backups.clone();
         let modal_state = modal_state.clone();
-
+        let finished = finished.clone();
         Callback::from(move |e: MouseEvent| {
             e.prevent_default(); // 防止Form提交刷新
             let input = note_input_ref.cast::<web_sys::HtmlInputElement>().unwrap();
@@ -89,15 +90,17 @@ pub fn backups() -> Html {
             let fetch = fetch.clone();
             let input_clone = input.clone();
             let modal_state = modal_state.clone();
+            let finished = finished.clone();
 
             spawn_local(async move {
                 // 调用 Tauri: save_backup
                 let args = serde_wasm_bindgen::to_value(&json!({ "name": note })).unwrap();
                 console::log_1(&format!("name: {}", note).into());
-                
+                finished.set(false);
                 match invoke("save_backup", args).await {
                     Ok(_) => {
                         console::log_1(&"保存成功".into());
+                        finished.set(true);
                         // 清空输入框并刷新列表
                         input_clone.set_value("");
                         fetch();
@@ -105,6 +108,7 @@ pub fn backups() -> Html {
                     Err(err) => {
                         // 从 JsValue 中提取错误信息
                         let err_msg = err.as_string().unwrap_or_else(|| "保存失败".to_string());
+                        finished.set(true);
                         console::log_1(&format!("保存失败: {}", err_msg).into());
                         // 显示错误弹窗
                         modal_state.set(ModalAction::ShowError(err_msg));
@@ -133,16 +137,19 @@ pub fn backups() -> Html {
     let on_modal_confirm = {
         let modal_state = modal_state.clone();
         let fetch = fetch_backups.clone();
+        let finished = finished.clone();
 
         Callback::from(move |_| {
             let fetch = fetch.clone();
             let current_action = (*modal_state).clone();
+            let finished = finished.clone();
 
             spawn_local(async move {
                 match current_action {
                     ModalAction::ConfirmRestore(id, _) => {
                         let args = serde_wasm_bindgen::to_value(&json!({ "backupId": id })).unwrap();
                         console::log_1(&format!("准备调用 load_backup，参数: backupId={}", id).into());
+                        finished.set(false);
                         match invoke("load_backup", args).await {
                             Ok(result) => {
                                 console::log_1(&format!("加载存档成功：{:?}", result).into());
@@ -152,6 +159,7 @@ pub fn backups() -> Html {
                                 console::log_1(&format!("加载存档失败：{:?}", e).into());
                             }
                         }
+                        finished.set(true);
                     },
                     ModalAction::ConfirmDelete(id, _) => {
                         let args = serde_wasm_bindgen::to_value(&json!({ "id": id })).unwrap();
@@ -289,6 +297,23 @@ pub fn backups() -> Html {
                     </div>
                 </div>
             }
+
+        if *finished != true {
+            <div class="modal-overlay">
+                <div class="modal-dialog">
+                    <div class="modal-header">
+                        <h3 class="modal-title">
+                            {"处理中"}
+                        </h3>
+                    </div>
+
+                    // modal-body 复用样式
+                    <div class="modal-body py-4 text-slate-300 flex flex-col items-center justify-center">
+                        <p>{"正在执行操作，若存档较大可能需要数分钟，请稍候..."}</p>
+                    </div>
+                </div>
+            </div>
+        }
         </div>
     }
 }
