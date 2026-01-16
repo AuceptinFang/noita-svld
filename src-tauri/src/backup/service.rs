@@ -1,13 +1,11 @@
-use super::fs_ops;
 use crate::units::path;
-use anyhow::{anyhow, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
-use log::info;
 use crate::backup::fs_ops::*;
 
 /// 把目标存档直接复制到本地
-pub async fn save_local() -> Result<String, String> {
+/// 返回 (backup_name, digest)
+pub async fn save_local() -> Result<(String, String), String> {
     let save_path = path::get_save_path().map_err(|e| e.to_string())?;
     let source_path = Path::new(&save_path);
 
@@ -32,13 +30,13 @@ pub async fn save_local() -> Result<String, String> {
     // 如果已经存在相同 digest 的备份，直接返回
     if backup_path.exists() {
         println!("备份已存在: {}", backup_path.display());
-        return Ok(backup_name);
+        return Ok((backup_name, digest));
     }
 
     // 复制存档目录
     copy_directory(source_path, &backup_path).map_err(|e| e.to_string())?;
 
     println!("存档已复制到: {}", backup_path.display());
-    Ok(backup_name)
+    Ok((backup_name, digest))
 }
 

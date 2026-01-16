@@ -31,6 +31,7 @@ pub fn run() -> Result<()> {
             save_data_path,
             select_save_path,
             verify_validation,
+            verify_data_validation,
             save_backup,
             get_all_backups,
             load_backup,

@@ -5,7 +5,7 @@ use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
 use crate::components::Backup;
-use crate::router::Route; 
+use crate::router::Route;
 
 #[wasm_bindgen]
 extern "C" {
@@ -119,7 +119,7 @@ pub fn home() -> Html {
                     <div class="action-content">
                         <span class="action-icon">{"⚙️"}</span>
                         <h3>{"设置"}</h3>
-                        <p>{"请确保游戏路径选择正确"}</p>
+                        <p>{"请确保游戏存档正确，磁盘空间充足"}</p>
                     </div>
                     <div class="action-arrow">{"→"}</div>
                 </Link<Route>>

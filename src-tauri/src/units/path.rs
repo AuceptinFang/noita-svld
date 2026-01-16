@@ -71,11 +71,11 @@ pub fn save_path_to_env(path: &str) -> Result<(), String> {
 #[tauri::command]
 pub fn save_data_path(path : &str) -> Result<(), String> {
     debug!("[save_config] 保存路径: {}", path);
-    
+
     let mut config = ConfigManager::load();
-    
+
     config.data_path = Some(path.to_string());
-    
+
     ConfigManager::save(&config)?;
 
     info!("配置已更新");
@@ -224,6 +224,31 @@ pub async fn verify_validation() -> Result<(), String> {
 
 #[tauri::command]
 pub async fn verify_data_validation() -> Result<(), String> {
+    debug!("[verify_validation] {}", Local::now());
+    let current_path = get_data_path().map_err(|e| e.to_string())?;
+    let path = Path::new(&current_path);
+
+    // 检查路径是否存在
+    if !path.exists() {
+        let e = format!("路径不存在: {}", current_path);
+        error!("{}",e);
+        return Err(e);
+    }
+
+    // 检查是否为目录
+    if !path.is_dir() {
+        let e = format!("路径不是目录: {}", current_path);
+        error!("{}",e);
+        return Err(e);
+    }
+
+    let probe_file = path.join(".write_probe");
+    if let Err(err) = fs::File::create(&probe_file).and_then(|_| fs::remove_file(&probe_file)) {
+        let e = format!("目录不可写: {} (错误: {})", current_path, err);
+        error!("{}", e);
+        return Err(e);
+    }
+
     Ok(())
 }
 #[cfg(test)]

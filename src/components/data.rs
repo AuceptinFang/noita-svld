@@ -32,7 +32,35 @@ pub fn path() -> Html {
         let is_valid = is_valid.clone();
 
         use_effect_with((), move |_| {
-            is_valid.set(true);
+            spawn_local(async move {
+                let response = invoke("get_data_path", JsValue::NULL).await;
+                match response {
+                    Ok(value) => {
+                        if let Some(path) = value.as_string() {
+                            current_path.set(path);
+
+                            // Try to verify the path
+                            match invoke("verify_data_validation", JsValue::NULL).await {
+                                Ok(_) => {
+                                    console::log_1(&"验证成功".into());
+                                    is_valid.set(true);
+                                }
+                                Err(e) => {
+                                    console::log_1(&format!("验证失败：{:?}", e).into());
+                                    is_valid.set(false);
+                                }
+                            }
+                        } else {
+                            current_path.set("未设置路径".to_string());
+                            is_valid.set(false);
+                        }
+                    }
+                    Err(_) => {
+                        current_path.set("未设置路径".to_string());
+                        is_valid.set(false);
+                    }
+                }
+            });
             || {}
         });
     }
@@ -105,7 +133,7 @@ pub fn path() -> Html {
             // 错误提示行：仅在无效时显示
             if !*is_valid {
                 <div class="path-help-text">
-                    {"此路径权限不足，请更换"}
+                    {"路径验证失败，可能由于权限不足，请尝试更换"}
                 </div>
             }
          </div>

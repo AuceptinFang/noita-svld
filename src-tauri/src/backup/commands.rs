@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use crate::db::{Backup, Db};
 use crate::backup::service::*;
 use crate::backup::fs_ops::*;
@@ -13,21 +13,11 @@ use crate::units::path;
 #[tauri::command]
 pub async fn save_backup(name : Option<&str>) -> Result<String, String> {
     debug!("[save_back_up] {}", Local::now());
-    // 先保存到本地
-    let backup_name = match save_local().await{
-        Ok(name) => name,
+    // 先保存到本地，获取备份名称和 digest
+    let (backup_name, digest) = match save_local().await{
+        Ok((name, digest)) => (name, digest),
         Err(e) => {
             error!("保存时出错: {}",e);
-            return Err(e);
-        }
-    };
-
-    // 计算备份信息
-    let backup_path = Path::new("./backups").join(&backup_name);
-    let digest = match calculate_hash(&backup_path).map_err(|e| e.to_string()){
-        Ok(digest) => digest,
-        Err(e) => {
-            error!("计算哈希出错: {}", e);
             return Err(e);
         }
     };
@@ -53,7 +43,10 @@ pub async fn save_backup(name : Option<&str>) -> Result<String, String> {
         return Err(msg);
     }
 
-    let size = match calculate_directory_size(&backup_path).map_err(|e| e.to_string()){
+    // 计算备份大小
+    let data_path = path::get_data_path().map_err(|e| e.to_string())?;
+    let backup_path_buf = PathBuf::from(&data_path).join(&backup_name);
+    let size = match calculate_directory_size(&backup_path_buf).map_err(|e| e.to_string()){
         Ok(size) => size,
         Err(e) => {
             error!("计算文件大小出错: {}",e);
@@ -149,7 +142,11 @@ pub async fn load_backup(backup_id: i32) -> Result<String, String> {
     // 构建备份文件路径
     let digest_prefix = &backup.digest[..12]; // 使用前12位
     let backup_name = format!("backup_{}", digest_prefix);
-    let backup_path = Path::new("./backups").join(&backup_name);
+    let data_path = path::get_data_path().map_err(|e| {
+        error!("获取数据路径失败: {}", e);
+        e.to_string()
+    })?;
+    let backup_path = Path::new(&data_path).join(&backup_name);
 
     // 验证备份文件是否存在
     if !backup_path.exists() {
@@ -231,7 +228,11 @@ pub async fn delete_backup(id : i32) -> Result<(), String> {
     // 构建备份文件路径 (命名方式: backup_{digest前12位})
     let digest_prefix = &backup.digest[..12];
     let backup_name = format!("backup_{}", digest_prefix);
-    let backup_path = Path::new("./backups").join(&backup_name);
+    let data_path = path::get_data_path().map_err(|e| {
+        error!("获取数据路径失败: {}", e);
+        e.to_string()
+    })?;
+    let backup_path = Path::new(&data_path).join(&backup_name);
 
     // 删除实际存档
     if backup_path.exists() {
