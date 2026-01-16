@@ -219,7 +219,6 @@ pub fn backups() -> Html {
                         let size_mb = (backup.size as f64) / (1024.0 * 1024.0);
                         // 简单格式化时间
                         let time_str = backup.save_time.format(&time::format_description::well_known::Rfc3339).unwrap_or("Unknown".into());
-                        // 实际项目中建议用 time crate 自定义 format_description 来显示更友好的 "YYYY-MM-DD HH:MM"
 
                         let on_restore = trigger_restore.clone();
                         let on_delete = trigger_delete.clone();
@@ -308,8 +307,10 @@ pub fn backups() -> Html {
                     </div>
 
                     // modal-body 复用样式
-                    <div class="modal-body py-4 text-slate-300 flex flex-col items-center justify-center">
-                        <p>{"正在执行操作，若存档较大可能需要数分钟，请稍候..."}</p>
+                    <div class="modal-body py-4 flex flex-col items-center justify-center">
+                        <div class="modal-content">
+                            {"正在执行操作，若存档较大可能需要数分钟，请稍候..."}
+                        </div>
                     </div>
                 </div>
             </div>

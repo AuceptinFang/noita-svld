@@ -141,5 +141,6 @@
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
 }
 .modal-title { margin-top: 0; color: white; }
+.modal-content { margin-top: 0; color: white; }
 .modal-footer { margin-top: 2rem; display: flex; justify-content: flex-end; gap: 1rem; }
 
