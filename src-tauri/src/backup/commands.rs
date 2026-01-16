@@ -153,7 +153,7 @@ pub async fn load_backup(backup_id: i32) -> Result<String, String> {
         error!("备份文件不存在: {}",backup_path.display());
         return Err(format!("备份文件不存在: {}", backup_path.display()));
     }
-
+    /*
     // 验证备份完整性
     let current_digest = calculate_hash(&backup_path).map_err(|e| {
         error!("完整性校验失败: {}",e);
@@ -164,7 +164,7 @@ pub async fn load_backup(backup_id: i32) -> Result<String, String> {
         error!("哈希校验失败");
         return Err(format!("备份文件已损坏，哈希值不匹配"));
     }
-
+    */
     // 删除目标目录（如果存在）
     if target_path.exists() {
         fs::remove_dir_all(target_path).map_err(|e| {

@@ -141,9 +141,17 @@ pub fn backups() -> Html {
             spawn_local(async move {
                 match current_action {
                     ModalAction::ConfirmRestore(id, _) => {
-                        let args = serde_wasm_bindgen::to_value(&json!({ "id": id })).unwrap();
-                        let _ = invoke("load_backup", args).await;
-                        // 还原后可能不需要刷新列表，但为了保险起见可以刷新
+                        let args = serde_wasm_bindgen::to_value(&json!({ "backupId": id })).unwrap();
+                        console::log_1(&format!("准备调用 load_backup，参数: backupId={}", id).into());
+                        match invoke("load_backup", args).await {
+                            Ok(result) => {
+                                console::log_1(&format!("加载存档成功：{:?}", result).into());
+                                fetch();
+                            },
+                            Err(e) => {
+                                console::log_1(&format!("加载存档失败：{:?}", e).into());
+                            }
+                        }
                     },
                     ModalAction::ConfirmDelete(id, _) => {
                         let args = serde_wasm_bindgen::to_value(&json!({ "id": id })).unwrap();
