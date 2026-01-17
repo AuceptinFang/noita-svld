@@ -7,7 +7,8 @@
     "beforeDevCommand": "trunk serve",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "trunk build",
-    "frontendDist": "../dist"
+    "frontendDist": "../dist",
+    "createUpdaterArtifacts": true
   },
   "app": {
     "withGlobalTauri": true,
@@ -34,6 +35,12 @@
     ]
   },
   "plugins": {
-    "dialog": null
+    "dialog": null,
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZGQzA1MkFCMEI0QTJGQQpSV1Q2b3JTd0tnWDhEM3NnWGwySjBPZEFwaHFHTU00TjN5NHU2M1poYzdJRVdnRnFOelR4dGlJMAo=",
+      "endpoints": [
+        "https://aucept.in/noita_svld/update.json"
+      ]
+    }
   }
 }

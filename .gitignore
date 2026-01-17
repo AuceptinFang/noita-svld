@@ -58,3 +58,5 @@ temp/
 # Tauri specific
 /src-tauri/gen/
 /src-tauri/target/
+
+/~/

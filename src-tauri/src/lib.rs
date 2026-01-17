@@ -24,6 +24,7 @@ pub fn run() -> Result<()> {
         )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             get_save_path,
             get_data_path,
