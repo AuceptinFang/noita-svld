@@ -5,6 +5,7 @@ use serde_json::json;
 use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use web_sys::console;
+use time::macros::format_description;
 
 #[derive(Properties, PartialEq, Clone)]
 pub struct BackupsProps {
@@ -217,8 +218,11 @@ pub fn backups() -> Html {
                         let name_for_delete = name.clone();
 
                         let size_mb = (backup.size as f64) / (1024.0 * 1024.0);
-                        // 简单格式化时间
-                        let time_str = backup.save_time.format(&time::format_description::well_known::Rfc3339).unwrap_or("Unknown".into());
+                        let fmt = format_description!("[year]年[month]月[day]日 [hour]:[minute]");
+
+                        let time_str = backup.save_time
+                            .format(&fmt)
+                            .unwrap_or_else(|_| "Unknown".into());
 
                         let on_restore = trigger_restore.clone();
                         let on_delete = trigger_delete.clone();
