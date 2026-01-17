@@ -1,0 +1,54 @@
+.settings-group {
+    margin: 20px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+}
+.setting-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.setting-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.label {
+    font-weight: 600;
+    color: #1e293b;
+}
+.description {
+    font-size: 13px;
+    color: #64748b;
+    margin: 0;
+}
+/* 关键配色：深蓝灰文字 + 浅蓝灰背景 */
+.btn-log {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background-color: #ffffff; /* 浅蓝灰 */
+    color: #334155;           /* 深蓝灰 */
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+.btn-log:hover {
+    background-color: #e2e8f0;
+    border-color: #94a3b8;
+    transform: translateY(-1px);
+}
+.btn-log:active {
+    transform: translateY(0);
+}
+.btn-emoji {
+    font-size: 16px;
+}

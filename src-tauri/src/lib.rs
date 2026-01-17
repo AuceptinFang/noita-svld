@@ -41,6 +41,7 @@ pub fn run() -> Result<()> {
             delete_backup,
             select_data_path,
             open_backup,
+            open_log,
         ])
         .run(tauri::generate_context!())?;
 
