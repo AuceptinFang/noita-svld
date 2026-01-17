@@ -1,4 +1,5 @@
 pub mod path;
 pub mod dashboard;
 pub mod db_path;
-mod update;
+pub mod update;
+pub mod file;

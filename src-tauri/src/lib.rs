@@ -6,6 +6,7 @@ use anyhow::Result;
 use backup::commands::*;
 use units::path::*;
 use units::dashboard::*;
+use units::file::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() -> Result<()> {
@@ -39,6 +40,7 @@ pub fn run() -> Result<()> {
             get_dashboard_stats,
             delete_backup,
             select_data_path,
+            open_backup,
         ])
         .run(tauri::generate_context!())?;
 

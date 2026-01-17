@@ -24,6 +24,7 @@ pub struct Backup {
     pub id: i32, // 唯一标识
     pub name: Option<String>, // 备注
     pub size: i64,
+    pub digest: String,
     #[serde(with = "time::serde::rfc3339")]
     pub save_time: OffsetDateTime,
 }
@@ -134,6 +135,23 @@ pub fn backups() -> Html {
         })
     };
 
+    let trigger_open = {
+        Callback::from(move |(id): (i32)| {
+            spawn_local(async move {
+                let id = id.clone();
+                let args = serde_wasm_bindgen::to_value(&json!({ "id": id })).unwrap();
+                match invoke("open_backup",args).await{
+                    Ok(r) => {
+                        console::log_1(&format!("打开存档成功" ).into());
+                    },
+                    Err(e) => {
+                        console::log_1(&format!("打开存档失败：{:?}", e).into());
+                    }
+                }
+            });
+        })
+    };
+
     // 执行确认操作 (Modal Confirm)
     let on_modal_confirm = {
         let modal_state = modal_state.clone();
@@ -218,12 +236,14 @@ pub fn backups() -> Html {
                         let name_for_delete = name.clone();
 
                         let size_mb = (backup.size as f64) / (1024.0 * 1024.0);
+                        let digest = &backup.digest[..8];
                         let fmt = format_description!("[year]年[month]月[day]日 [hour]:[minute]");
 
                         let time_str = backup.save_time
                             .format(&fmt)
                             .unwrap_or_else(|_| "Unknown".into());
 
+                        let on_open = trigger_open.clone();
                         let on_restore = trigger_restore.clone();
                         let on_delete = trigger_delete.clone();
 
@@ -235,11 +255,18 @@ pub fn backups() -> Html {
                                     <div class="card-meta">
                                         <span>{ "📅 " }{ &time_str }</span>
                                         <span>{ "💿 " }{ format!("{:.2} MB", size_mb) }</span>
+                                        <span>{format!("digest: {}", digest)}</span>
                                     </div>
                                 </div>
 
                                 // 右侧操作按钮
                                 <div class="card-actions">
+                                    <button
+                                        class="btn btn-open"
+                                        onclick={Callback::from(move |_| on_open.emit((id)))}
+                                    >
+                                    {"Open"}
+                                    </button>
                                     <button
                                         class="btn btn-restore"
                                         onclick={Callback::from(move |_| on_restore.emit((id, name_for_restore.clone())))}

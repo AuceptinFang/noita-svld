@@ -107,6 +107,13 @@
 }
 .btn-create:hover { background-color: #2563eb; }
 
+.btn-open{
+    background-color: #fdf093; /* 黄色 */
+    color: #92400E;
+}
+
+.btn-restore:hover { background-color: #ffca3b; }
+
 .btn-restore {
     background-color: #10b981; /* 绿色 */
     color: white;
@@ -122,6 +129,7 @@
     background-color: #ef4444;
     color: white;
 }
+
 
 /* 模态框样式 (沿用之前的，稍微美化) */
 .modal-overlay {
