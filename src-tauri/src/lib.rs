@@ -7,7 +7,7 @@ use backup::commands::*;
 use units::path::*;
 use units::dashboard::*;
 use units::file::*;
-
+use units::update::*;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() -> Result<()> {
     tauri::Builder::default()
@@ -43,6 +43,7 @@ pub fn run() -> Result<()> {
             select_data_path,
             open_backup,
             open_log,
+            check_update,
         ])
         .run(tauri::generate_context!())?;
 

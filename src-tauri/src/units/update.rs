@@ -1,8 +1,9 @@
 use log::info;
 use tauri_plugin_updater::UpdaterExt;
 use tauri_plugin_process::*;
+
 #[tauri::command]
-async fn check_update(app: tauri::AppHandle) -> Result<String, String> {
+pub async fn check_update(app: tauri::AppHandle) -> Result<String, String> {
     let updater = app.updater().map_err(|e| e.to_string())?;
 
     // 检查是否有新版本
