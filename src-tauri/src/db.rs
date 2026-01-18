@@ -169,5 +169,9 @@ impl Db {
 
         Ok(backup)
     }
+    
+    pub async fn rename_backup(conn: &mut SqliteConnection, id: i32, name : &str) -> anyhow::Result<()> {
+        Ok(())
+    }
 }
 

@@ -3,6 +3,7 @@ pub mod backups;
 pub mod sideBar;
 pub mod data;
 pub mod log;
+mod version;
 
 // 重导出组件
 pub use path::Path;

@@ -9,6 +9,7 @@ use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use crate::units::path;
 use crate::units::db_path;
+use crate::units::path::get_save_path;
 
 /// 在数据库里留档
 #[tauri::command]
@@ -144,17 +145,13 @@ pub async fn load_backup(backup_id: i32) -> Result<String, String> {
     };
 
     // 获取游戏存档路径（目标路径）
-    let save_path = backup.path;
+    let save_path = get_save_path()?;
     let target_path = Path::new(&save_path);
 
     // 构建备份文件路径
     let digest_prefix = &backup.digest[..12]; // 使用前12位
     let backup_name = format!("backup_{}", digest_prefix);
-    let data_path = path::get_data_path().map_err(|e| {
-        error!("获取数据路径失败: {}", e);
-        e.to_string()
-    })?;
-    let backup_path = Path::new(&data_path).join(&backup_name);
+    let backup_path = Path::new(&backup.path).join(&backup_name);
 
     // 验证备份文件是否存在
     if !backup_path.exists() {
