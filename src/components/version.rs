@@ -16,6 +16,21 @@ struct Empty {}
 pub fn version() -> Html {
     let checking = use_state(|| false);
     let message = use_state(|| String::from(""));
+    let current_version = use_state(|| String::from("加载中..."));
+
+    {
+        let current_version = current_version.clone();
+        use_effect_with((), move |_| {
+            spawn_local(async move {
+                match invoke("get_version", JsValue::NULL).await.as_string() {
+                    Some(v) => current_version.set(v),
+                    None => current_version.set("未知版本".to_string()),
+                }
+            });
+            || {}
+        });
+    }
+
 
     let on_check_update = {
         let checking = checking.clone();
@@ -43,17 +58,26 @@ pub fn version() -> Html {
     };
 
     html! {
-        <div class="version-container">
-            <button 
-                onclick={on_check_update} 
-                disabled={*checking}
-                class="update-button"
-            >
-                { if *checking { "检查中..." } else { "检查更新" } }
-            </button>
-            
+        <div class="version-card">
+            <div class="version-row">
+                <div class="version-text">
+                    {"当前版本： "}
+                    <span class="version-number">{ &*current_version }</span>
+                </div>
+
+                <button
+                    onclick={on_check_update}
+                    disabled={*checking}
+                    class="update-button"
+                >
+                    { if *checking { "检查中..." } else { "检查更新" } }
+                </button>
+            </div>
+
             if !message.is_empty() {
-                <p class="update-message">{ &*message }</p>
+                <div class="update-message">
+                    { &*message }
+                </div>
             }
         </div>
     }

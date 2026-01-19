@@ -1,4 +1,5 @@
 use log::info;
+use tauri::AppHandle;
 use tauri_plugin_updater::UpdaterExt;
 use tauri_plugin_process::*;
 
@@ -32,4 +33,9 @@ pub async fn check_update(app: tauri::AppHandle) -> Result<String, String> {
     } else {
         Ok("Already up to date".to_string())
     }
+}
+#[tauri::command]
+pub async fn get_version(app: AppHandle) -> Result<String, String> {
+    let version = app.package_info().version.to_string();
+    Ok(format!("v{}", version))
 }

@@ -5,11 +5,10 @@ use crate::components::Version;
 pub fn home() -> Html {
     html! {
         <div class="dashboard-container">
-            <h1>{ "有bug请随缘等更新" }</h1>
-            <br />
-            <h1>{"开发者邮箱：me@aucept.in"}</h1>
-            <br />
             <Version />
+            <br />
+            <h2 class="version-text" style="text-align: center;">{"反馈可发送至开发者邮箱：me@aucept.in"}</h2>
+            <br />
         </div>
     }
 }

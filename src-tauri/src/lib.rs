@@ -44,6 +44,7 @@ pub fn run() -> Result<()> {
             open_backup,
             open_log,
             check_update,
+            get_version,
         ])
         .run(tauri::generate_context!())?;
 

@@ -1,0 +1,74 @@
+.version-card {
+    padding: 12px;
+    border-radius: 12px;
+    background-color: #f5f5f5;
+    border: 1px solid #e0e0e0;
+
+    max-width: 500px;         /* 调大最大宽度 */
+    margin: 40px auto;        /* 上下留白 40px，左右自动对齐实现居中 */
+
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* 第一行：版本号显示 + 按钮 */
+.version-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 500px;
+    width: 100%;
+    gap: 12px;
+}
+
+.version-text {
+    font-size: 24px;
+    font-weight: 500;
+    color: #333;
+}
+
+.version-number {
+    font-family: monospace;
+    font-weight: bold;
+    color: #007bff; /* 强调色 */
+}
+
+/* 按钮样式 */
+.update-button {
+    margin: 6px 12px;
+    padding: 6px 12px;
+    font-size: 20px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.update-button:hover:not(:disabled) {
+    background-color: #e6f7ff;
+    border-color: #1890ff;
+    color: #1890ff;
+}
+
+.update-button:disabled {
+    background-color: #f0f0f0;
+    color: #999;
+    cursor: not-allowed;
+}
+
+/* 消息提示区域 */
+.update-message {
+    margin-top: 10px;
+    font-size: 24px;
+    padding: 8px;
+    background-color: #fff;
+    border-radius: 4px;
+    color: #666;
+    border-left: 3px solid #1890ff; /* 左侧强调线 */
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
